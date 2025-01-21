@@ -17,6 +17,7 @@ export const
         "journal": "Журнал",
         "organization": "Организация",
         "publication": "Публикация",
+        "isand_publ": "Публикация",
         "deepSearch": "Тематический поиск",
         "glossary": "Глоссарий",
         "personality": "Личная страница",

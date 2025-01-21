@@ -51,6 +51,7 @@ const RadarComponent: React.FC<RoseOfWinds> = (props): React.ReactElement => {
                 setLoading(true);
                 try {
                     const result = await postRoseOfWinds(props).unwrap();
+                    //console.log(result);
                     setData({
                         profile: result.items[0].factors.map(factor => {
                             return {
@@ -60,7 +61,7 @@ const RadarComponent: React.FC<RoseOfWinds> = (props): React.ReactElement => {
                         })
                     });
                 } catch (error) {
-                    console.log(error);
+                    //console.log(error);
                 } finally {
                     setLoading(false);
                 }

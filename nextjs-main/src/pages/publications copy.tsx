@@ -1,136 +1,132 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import { usePostDeepSearchSearchMutation } from '@/src/store/api/serverApiV3';
-import { DeepSearchRequest, Hits, Phrases } from '@/src/store/types/deepSearchTypes';
-import { Card, CardContent, Stack, Typography, Button } from '@mui/material';
-import Link from 'next/link';
-import StyledAvatar from '@/src/components/Avatar/StyledAvatar';
 
+import React, { useEffect, useState } from "react";
+import { Stack, Typography, Box, Card, CircularProgress } from "@mui/material";
+import { useGetPublIsandInfoQuery, useSearchPublicationsQuery, useGetPublCardInfoQuery } from "@/src/store/api/serverApiV2_5";
+import { useInView } from "react-intersection-observer";
+import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
+import Link from 'next/link';
 
 const PublicationsPage = () => {
-    const [creatures, setCreatures] = useState<Hits[]>([]);
-    const [totalHits, setTotalHits] = useState(0);
-    const [offset, setOffset] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [postDeepSearchSearch, { isLoading, error, data }] = usePostDeepSearchSearchMutation();
-  
-    const router = useRouter();
-    const name = 'publications';
-  
-    const deepSearchRequest: DeepSearchRequest = {
-      phrases: [
-        { name: 'Предметная область', id: 211, cut_off: [0, 1] },
-        { name: 'Общенаучная проблематика', id: 1, cut_off: [0, 1] },
-        { name: 'Математический аппарат', id: 2223, cut_off: [0, 1] },
-        { name: 'Сфера применения', id: 1540, cut_off: [0, 1] },
-      ],
-      sort_by: 'desc',
-      sort_type: 'relevance',
-      time_range: [1997, 2024],
-      offset: 0,
-    };
-  
-    const getSessionStorageKey = (request: Omit<DeepSearchRequest, 'offset' | 'search_field'>, name: string) => {
-      return `d_${name}_${JSON.stringify(request)}`;
-    };
-  
-    const loadMoreData = async (deepSearchRequest: Omit<DeepSearchRequest, 'offset' | 'search_field'>, name: string) => {
-      const sessionKey = getSessionStorageKey(deepSearchRequest, name);
-      try {
-        const result = await postDeepSearchSearch({
-          ...deepSearchRequest,
-          search_field: name,
-          offset: creatures.length,
-          phrases: deepSearchRequest.phrases as Phrases[],
-        }).unwrap();
-  
-        setCreatures((prevCreatures) => {
-          const newCreatures = [...prevCreatures, ...result.hits];
-          if (totalHits < 0) setTotalHits(result.total_hits);
-          if (newCreatures.length >= result.total_hits) {
-            setHasMore(false);
-          }
-          setOffset(offset + result.hits.length);
-          sessionStorage.setItem(sessionKey, JSON.stringify({
-            results: newCreatures,
-            totalHits: result.total_hits,
-            offset: offset + result.hits.length,
-          }));
-          return newCreatures;
-        });
-      } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-      }
-    };
-  
-    useEffect(() => {
-      const sessionKey = getSessionStorageKey(deepSearchRequest, name);
-      const cachedData = sessionStorage.getItem(sessionKey);
-    
-      if (cachedData) {
-        const { results, totalHits, offset } = JSON.parse(cachedData);
-        setCreatures(results);
-        setTotalHits(totalHits);
-        setOffset(offset);
-        setHasMore(results.length < totalHits);
-      } else {
-        loadMoreData(deepSearchRequest, name);
-      }
-    }, []); // Use an empty dependency array to ensure this only runs once after the initial render
-    
-    const handleHref = (creatureId: number) => {
-      return `/publications/publication?creature_id=${creatureId}`;
-    };
-  
-    if (isLoading) {
-      return <p></p>;
-    }
-  
-    if (error) {
-      return <p>Произошла ошибка: {error}</p>;
-    }
-  
-    return (
-      <div>
-        {creatures.length > 0 ? (
-          <div>
-            {creatures.map((creature, index) => (
-              <Link key={index} href={handleHref(creature.id)}>
-                <Card sx={{ m: '25px', boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)'}}>
-                  <CardContent sx={{ display: 'flex', alignItems: 'stretch' }}>
-                    <Stack direction="row" alignItems="center" sx={{ width: '100%' }} spacing={2}>
+    const [currentId, setCurrentId] = useState(1);
+    const [allPublications, setAllPublications] = useState<Publication[]>([]);
+    const { ref, inView } = useInView();
 
-                      <Stack spacing={1}>
-                        <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{creature.name}</Typography>
-                        {creature.add_info && (
-                          <Typography sx={{ alignSelf: 'flex-start' }} color='primary' variant='h5'>
-                            {creature.add_info.join(', ')}
-                          </Typography>
-                        )}
-                        {creature.affiliation && <Typography>{creature.affiliation}</Typography>}
-                        {creature.terms && (
-                          <Stack>
-                            <span className='text-xl mt-2 text-blue-main'>Количество терминов</span>
-                            {creature.terms.map((item, idx) => (
-                              <span key={idx}>{item.term}: {item.count}</span>
-                            ))}
-                          </Stack>
-                        )}
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p>Нет результатов</p>
-        )}
+    const { data, error, isLoading } = useGetPublIsandInfoQuery(currentId);
+    const [searchText, setSearchText] = useState('');
+    const [isSearching, setIsSearching] = useState(false); 
 
-      </div>
+    const { data: searchResults } = useSearchPublicationsQuery(
+        { type: "статья,доклад,Глава в книге,глава,книга,пленарный доклад, препринт, тезисы", all_text: searchText },
+        { skip: !isSearching }
     );
-  };
-  
+    
+    const [showResults, setShowResults] = useState(false);
+
+    const handleSearch = () => {
+        setIsSearching(true);
+        setShowResults(true);
+    };
+
+    useEffect(() => {
+        setShowResults(false);
+    }, [searchText]);
+
+    useEffect(() => {
+        if (searchResults) {
+            setIsSearching(false);
+        }
+    }, [searchResults]);
+
+    useEffect(() => {
+        if (data && data.length > 0) {
+            setAllPublications(prev => [...prev, ...data]);
+            setCurrentId(prev => prev + 1);
+        }
+    }, [data]);
+
+    useEffect(() => {
+        if (inView && !isLoading) {
+            setCurrentId(prev => prev + 1);
+        }
+    }, [inView, isLoading]);
+
+    const handleHref = (creatureId: number) => {
+        return `/publications/publication?creature_id=${creatureId}`;
+    };
+
+    if (error) return <Typography color="error"></Typography>;
+
+    return (
+        <Stack sx={{ height: "100%" }} mt={2} spacing={3}>
+            <Stack sx={{ width: "90%", alignSelf: "center" }} spacing={3}>
+                <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <input
+                            type="text"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            placeholder="Поиск по ключевым словам публикаций"
+                            style={{
+                                width: '100%',
+                                padding: '8px',
+                                borderRadius: '4px',
+                                border: '1px solid #ccc',
+                            }}
+                        />
+                    </Box>
+                    <StyledContainedButton 
+                        variant="contained"
+                        onClick={handleSearch} 
+                    >
+                        Найти
+                    </StyledContainedButton>
+                </Stack>
+
+                {isSearching && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <CircularProgress />
+                    </Box>
+                )}
+
+                <Stack spacing={3}>
+                    {searchText !== '' && searchResults && !isSearching && showResults && (
+                        <>
+                            {searchResults.map((publication) => (
+                                <Card key={publication.publ_isand_id} sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px' }}>
+                                    <Typography variant="h6">{publication.publ_name}</Typography>
+                                    <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
+                                    <Typography variant="body2">Год: {publication.year}</Typography>
+                                    <Typography variant="body2">Источник: {publication.ext_source}</Typography>
+                                </Card>
+                            ))}
+                        </> 
+                    )}
+                </Stack>
+
+
+                <Stack spacing={3}>
+                    {searchText === '' && (
+                        <>
+                            {allPublications.map((publication) => (
+                                    <Card key={publication.publ_isand_id} sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px' }}>
+                                        <Typography variant="h6">{publication.publ_name}</Typography>
+                                        <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
+                                        <Typography variant="body2">Год: {publication.year}</Typography>
+                                        <Typography variant="body2">Источник: {publication.ext_source}</Typography>
+                                    </Card>
+
+                            ))}
+
+                            <Box ref={ref} sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                {isLoading && <CircularProgress />}
+                            </Box>
+                        </>
+                    )}
+                </Stack>
+            </Stack>
+        </Stack>
+    );
+};
 
 export default PublicationsPage;

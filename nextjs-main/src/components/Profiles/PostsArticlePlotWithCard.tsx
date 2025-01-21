@@ -46,7 +46,6 @@ const PostsArticlePlotWithCard = () => {
     const selected_works = useTypedSelector(selectWorks);
 
     const [getPosts, _] = useGetPostsForGraphMutation();
-
     useEffect(() => {
         setLoading(true);
         setCurItem(null);
@@ -90,11 +89,15 @@ const PostsArticlePlotWithCard = () => {
 
                 ([] as PostsForGraphResponsePreparedItem[]).concat(a_resp || []).concat(l_resp || []).forEach((item) => {
                     item.terms.forEach((t_item) => {
-                        if (!(t_item.value in prep_resp)) {
-                            const a = serializeSchemeValues(t_item.value);
-                            prep_resp[t_item.value as keyof typeof prep_resp] = { name: a?.at(a.length - 1) || "" } as unknown as { name: string } & { [ids: string]: number };
+                        const a = serializeSchemeValues(t_item.value);
+                        if (a && a.length === level) {
+                            if (!(t_item.value in prep_resp)) {
+                                prep_resp[t_item.value as keyof typeof prep_resp] = { 
+                                    name: a.at(a.length - 1) || "" 
+                                } as unknown as { name: string } & { [ids: string]: number };
+                            }
+                            prep_resp[t_item.value as keyof typeof prep_resp][item.author] = t_item.count;
                         }
-                        prep_resp[t_item.value as keyof typeof prep_resp][item.author] = t_item.count;
                     });
                 });
 

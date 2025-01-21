@@ -9,7 +9,6 @@ const AnyBarChart = ({ data, onClick, formatter, colors, customTooltip = BarCust
     formatter: (value: any, entry: any, index: any) => React.ReactNode,
     customTooltip?: ({ active, payload, label }: { active: boolean, payload: any[], label: string }) => React.ReactNode
 }) => {
-    console.log(data)
 
     const ids: { [id: string]: {} } = {}
 

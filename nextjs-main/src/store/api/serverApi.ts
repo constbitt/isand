@@ -61,13 +61,15 @@ export const serverApi = createApi({
             query: (arg) => `/raitings?path=${arg.path}&type=${arg.type}`
         }),
         getPostsForGraph: builder.mutation<PostsForGraphResponsePreparedItem[], PostsForGraphRequest>({
-            query: (arg) => ({
-                url: "/posts_for_graph",
-                method: "POST",
-                body: arg,
-            }),
+            query: (arg) => {
+                return {
+                    url: "/posts_for_graph",
+                    method: "POST",
+                    body: arg,
+                };
+            },
             transformResponse: (baseQueryReturnValue: PostsForGraphResponse) => {
-                return preparePostForGraphResponse(baseQueryReturnValue)
+                return preparePostForGraphResponse(baseQueryReturnValue);
             }
         }),
         getArticleRating: builder.mutation<ArticleRatingResponsePreparedItem[], ArticleRatingRequest>({

@@ -1,5 +1,6 @@
 import {Card, Stack, Typography} from "@mui/material";
 import {useGetArticleRatingMutation, useGetPostsForGraphMutation} from "@/src/store/api/serverApi";
+import {useGetFactorsQuery} from "@/src/store/api/serverApiV2";
 import {useEffect, useState} from "react";
 import {serializeSchemeValues} from "@/src/tools/schemeTool";
 import {PostsForGraphRequest} from "@/src/store/types/postsForGraphTypes";
@@ -19,6 +20,8 @@ import {
 } from "@/src/store/slices/profilesSlice";
 import {Loader} from "@/src/components/Loader/Loader";
 import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
+import { getFactorPath } from "@/src/tools/getFactorPath";
+
 
 const ProfileRatingsCard = ({
                                 curItem
@@ -63,11 +66,19 @@ const ProfileRatingsCard = ({
         data: articleRatingData
     }] = useGetArticleRatingMutation()
 
+    const { data: factorsData, isLoading: isFactorsLoading, isError: isFactorsError } = useGetFactorsQuery();
+
+    useEffect(() => {
+        if (factorsData) {
+        }
+    }, [factorsData]);
 
     useEffect(() => {
         if (curItem) {
 
             const tp = selected_laboratories.length > 0
+            const path = getFactorPath(level, curItem.name, factorsData || []);
+
 
             const a_req = {
                 selected_authors: tp ? selected_laboratories.map(item => item.div_id) : selected_authors.map(item => item.id),
@@ -78,7 +89,7 @@ const ProfileRatingsCard = ({
                 cutoff_terms_value: 1,
                 include_common_terms: scientific_terms,
                 include_management_theory: "значение_include_management_theory",
-                path: thesaurus_path.concat([curItem.name]),
+                path: path,
                 selected_type: tp ? "labs" : "authors",
                 years: time_range
             } as PostsForGraphRequest
@@ -92,13 +103,10 @@ const ProfileRatingsCard = ({
                 cutoff_terms_value: 0,
                 include_common_terms: scientific_terms,
                 include_management_theory: "значение_include_management_theory",
-                path: thesaurus_path.concat([curItem.name]),
+                path: path,
                 selected_type: tp ? "labs" : "authors",
                 years: time_range
             } as PostsForGraphRequest
-            console.log("Запрос для getPosts (a_req):", a_req);
-            console.log("Запрос для getArticleRating (l_req):", l_req);
-            console.log("Path: ", curItem.name);
             getPosts(a_req)
             getArticleRating(l_req)
         }
@@ -107,17 +115,7 @@ const ProfileRatingsCard = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps 
     ]);
 
-    useEffect(() => {
-        if (postForGraphData) {
-            console.log("Данные от getPosts:", postForGraphData);
-        }
-    }, [postForGraphData]);
-    
-    useEffect(() => {
-        if (articleRatingData) {
-            console.log("Данные от getArticleRating:", articleRatingData);
-        }
-    }, [articleRatingData]);
+
 
     const isPageLoading = isPostsForGraphLoading || isArticleRatingLoading;
 

@@ -42,7 +42,30 @@ export const serverApiV2 = createApi({
                 method: "GET",
                 params: arg
             })
-        })
+        }),
+
+        getFactors: builder.query<
+        { 
+            c_f_0_name: string; 
+            c_f_1_id: number; 
+            c_f_1_name: string; 
+            c_f_2_id: number; 
+            c_f_2_name: string; 
+            term_id: number; 
+            term_names: string; 
+        }[], 
+        void
+    >({
+        queryFn: async () => {
+            try {
+                const response = await axios.get(`${api_v2_server}/factor/get_factors`);
+                return { data: response.data };
+            } catch (error) {
+                return { error: { status: 0, data: String(error) } };
+            }
+        }
+    }),
+
     }),
 });
 
@@ -50,6 +73,7 @@ export const serverApiV2 = createApi({
 export const {
     useGetOrganizationQuery,
     useGetYearsRangeQuery,
+    useGetFactorsQuery,
     util: {getRunningQueriesThunk},
 } = serverApiV2;
 

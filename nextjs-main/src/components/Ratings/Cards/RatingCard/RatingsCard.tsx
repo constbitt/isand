@@ -57,7 +57,6 @@ const RatingsCard = ({
                 path: normalized_scheme,
                 selected_type: ratingsType
             } as PostsForGraphRequest
-
             getPosts(req)
             getArticleRating(req)
         }

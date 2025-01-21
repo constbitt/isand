@@ -43,7 +43,18 @@ const App: NextPage<AppProps> = ({Component, ...rest}: AppPropsWithLayout) => {
     useEffect(() => {
         document.querySelectorAll("title").item(0).text = (breadcrumbs as any)[router.pathname.slice(1)]
     }, [router.pathname, breadcrumbs]);
+    /*
+    useEffect(() => {
+        const handleIdle = () => {
+            router.push('/'); // Перенаправление на главную страницу
+        };
 
+        const timer = setTimeout(handleIdle, 600000); // 5 минут (300000 миллисекунд)
+
+        return () => clearTimeout(timer);
+    }, [router]);
+
+    */
     const getRootLayout = Component.getRootLayout ?? ((page) => {
         return <RootLayout>{page}</RootLayout>
     })

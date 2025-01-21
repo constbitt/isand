@@ -3,7 +3,7 @@
 import { getAuthors, getRunningQueriesThunk as apiV1GetRunningQueriesThunk } from "@/src/store/api/serverApi";
 import { wrapper } from "@/src/store/store";
 import { getOrganization, getRunningQueriesThunk as apiV2GetRunningQueriesThunk } from "@/src/store/api/serverApiV2";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Stack, Typography, Box, Card } from "@mui/material";
 import Select from "react-select";
 import { ApiResponse } from "@/src/store/types/apiTypes";

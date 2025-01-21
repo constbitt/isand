@@ -2,29 +2,49 @@
 
 import React, { useEffect, useState } from "react";
 import { Stack, Typography, Box, Card, CircularProgress } from "@mui/material";
-import { useGetPublIsandInfoQuery, useSearchPublicationsQuery, useGetPublCardInfoQuery } from "@/src/store/api/serverApiV2_5";
+import { useGetPublIsandInfoQuery, useSearchPublicationsQuery, useGetPublCardInfoQuery, useGetPublByFileStoreIdQuery, useSearchPublByTitleQuery } from "@/src/store/api/serverApiV2_5";
 import { useInView } from "react-intersection-observer";
 import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
 import Link from 'next/link';
 
+interface PublicationWithId extends Publication {
+    fileStoreId: number;
+}
+
 const PublicationsPage = () => {
+
     const [currentId, setCurrentId] = useState(1);
-    const [allPublications, setAllPublications] = useState<Publication[]>([]);
+    const [allPublications, setAllPublications] = useState<PublicationWithId[]>([]);
     const { ref, inView } = useInView();
 
-    const { data, error, isLoading } = useGetPublIsandInfoQuery(currentId);
+    //const { data, error, isLoading } = useGetPublIsandInfoQuery(currentId);
+    const { data, error, isLoading  } = useGetPublByFileStoreIdQuery(currentId);
     const [searchText, setSearchText] = useState('');
     const [isSearching, setIsSearching] = useState(false); 
-
+/*
     const { data: searchResults } = useSearchPublicationsQuery(
         { type: "статья,доклад,Глава в книге,глава,книга,пленарный доклад, препринт, тезисы", all_text: searchText },
         { skip: !isSearching }
     );
+    */
+
+    const { data: searchResults } = useSearchPublByTitleQuery(
+        {title: searchText },
+        { skip: !isSearching }
+    );
+
     const [showResults, setShowResults] = useState(false);
 
     const handleSearch = () => {
         setIsSearching(true);
         setShowResults(true);
+    };
+
+    // Добавляем обработчик нажатия клавиш
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            handleSearch();
+        }
     };
 
     useEffect(() => {
@@ -39,7 +59,11 @@ const PublicationsPage = () => {
 
     useEffect(() => {
         if (data && data.length > 0) {
-            setAllPublications(prev => [...prev, ...data]);
+            const publicationsWithId = data.map(publication => ({
+                ...publication,
+                fileStoreId: currentId
+            }));
+            setAllPublications(prev => [...prev, ...publicationsWithId]);
             setCurrentId(prev => prev + 1);
         }
     }, [data]);
@@ -50,8 +74,8 @@ const PublicationsPage = () => {
         }
     }, [inView, isLoading]);
 
-    const handleHref = (creatureId: number) => {
-        return `/publications/publication?creature_id=${creatureId}`;
+    const handleHref = (id: number) => {
+        return `/publications/publication?creature_id=${id}`;
     };
 
     if (error) return <Typography color="error"></Typography>;
@@ -65,7 +89,8 @@ const PublicationsPage = () => {
                             type="text"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
-                            placeholder="Поиск по ключевым словам публикаций"
+                            onKeyDown={handleKeyDown}
+                            placeholder="Поиск по названию публикации"
                             style={{
                                 width: '100%',
                                 padding: '8px',
@@ -92,12 +117,14 @@ const PublicationsPage = () => {
                     {searchText !== '' && searchResults && !isSearching && showResults && (
                         <>
                             {searchResults.map((publication) => (
-                                <Card key={publication.publ_isand_id} sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px' }}>
-                                    <Typography variant="h6">{publication.publ_name}</Typography>
-                                    <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
-                                    <Typography variant="body2">Год: {publication.year}</Typography>
-                                    <Typography variant="body2">Источник: {publication.ext_source}</Typography>
-                                </Card>
+                                <Link key={publication.publ_isand_id} href={`/publications/isand_publ?creature_id=${publication.publ_isand_id}`} passHref>
+                                    <Card sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px', cursor: 'pointer' }}>
+                                        <Typography variant="h6">{publication.publ_name}</Typography>
+                                        <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
+                                        <Typography variant="body2">Год: {publication.year}</Typography>
+                                        <Typography variant="body2">Источник: {publication.ext_source}</Typography>
+                                    </Card>
+                                </Link>
                             ))}
                         </> 
                     )}
@@ -108,15 +135,15 @@ const PublicationsPage = () => {
                     {searchText === '' && (
                         <>
                             {allPublications.map((publication) => (
-                                    <Card key={publication.publ_isand_id} sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px' }}>
+                                <Link key={publication.publ_isand_id} href={handleHref(publication.fileStoreId)} passHref>
+                                    <Card sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px', cursor: 'pointer' }}>
                                         <Typography variant="h6">{publication.publ_name}</Typography>
                                         <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
                                         <Typography variant="body2">Год: {publication.year}</Typography>
                                         <Typography variant="body2">Источник: {publication.ext_source}</Typography>
                                     </Card>
-
+                                </Link>
                             ))}
-
                             <Box ref={ref} sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                                 {isLoading && <CircularProgress />}
                             </Box>
