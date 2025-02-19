@@ -159,7 +159,7 @@ const AuthorPage1: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = ({ aut
   });
 
 
-
+  //console.log(author);
   //if (authorId !== null) {
     return <AuthorSearchPage authorsResponse={authorsResponse} />;
   //}

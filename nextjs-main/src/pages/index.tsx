@@ -9,6 +9,8 @@ import 'slick-carousel/slick/slick-theme.css';
 import { useGetTotalCountQuery } from "../store/api/serverApiV3";
 import { Stack, Typography } from "@mui/material";
 import Link from 'next/link';
+import ProfilesImg from "@/src/assets/images/home/profiles.svg";
+import Image from "next/image";
 
 const slides: string[] = [];
 for (let i = 0; i <= 21; i++) {
@@ -84,15 +86,48 @@ const Home = (): React.ReactElement => {
                     Информационная система анализа научной деятельности
                 </h1>
                 <div className="w-[67.5vw] mt-[52px] grid grid-cols-3 gap-5">
-                    {cards.map((item, index) => (
-                        <CardItem
-                            link={item.link}
-                            name={item.name}
-                            src={item.src}
-                            text={item.text}
-                            key={index}
-                        />
-                    ))}
+                {cards.map((item, index) => {
+        if (item.name === 'Тематические\n профили') {
+            return (
+                <div key={index} className="w-full h-full px-4 py-3 rounded-[32px] flex flex-col items-center shadow-[0_0_14px_rgba(0,0,0,0.25)]">
+                    <Image className="w-full" src={ProfilesImg} alt=""/>
+                    <h3 className="pt-6 pb-3 text-[32px] text-center font-bold text-blue-main whitespace-pre-line break-words" style={{lineHeight: 1.15}}>{item.name}</h3>
+                    <div className="h-full">
+                        <p className="px-4 text-2xl font-normal whitespace-pre-line break-words" style={{lineHeight: 1.15}}>{item.text}</p>
+
+                        <p className="px-4 text-2xl font-normal whitespace-pre-line break-words" style={{lineHeight: 1.15}}>
+                            <Link href="/profiles" passHref>
+                                <span className="hover:underline">ученых,</span>
+                            </Link>
+                        </p>
+                        <p className="px-4 text-2xl font-normal whitespace-pre-line break-words" style={{lineHeight: 1.15}}>
+                            <Link href="/journals" passHref>
+                                <span className="hover:underline">журналов,</span>
+                            </Link>
+                        </p>
+                        {/* <p className="px-4 text-2xl font-normal whitespace-pre-line break-words" style={{lineHeight: 1.15}}>
+                            <Link href="/conferences" passHref>
+                                <span className="hover:underline">конференций</span>
+                            </Link>
+                        </p> */}
+
+                        <p className="px-4 text-2xl font-normal whitespace-pre-line break-words" style={{lineHeight: 1.15}}>
+                            конференций
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <CardItem
+                link={item.link}
+                name={item.name}
+                src={item.src}
+                text={item.text}
+                key={index}
+            />
+        );
+    })}
                 </div>
                 <SlideShow />
                 {data && (

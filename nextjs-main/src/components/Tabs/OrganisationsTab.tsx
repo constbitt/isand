@@ -51,7 +51,7 @@ const OrganisationsTab: React.FC<{ organisations: any[], isLoading: boolean }> =
                                 post={{ 
                                     id: organisation.org_isand_id, 
                                     name: organisation.org_name, 
-                                    ror: organisation.ror, 
+                                    //ror: organisation.ror, 
                                     avatar: organisation.avatar 
                                 }} 
                                 onClick={() => handleOpenOrganisationModal(organisation.org_isand_id)}

@@ -1,7 +1,7 @@
 import { Box, Stack } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import AnyBarChart from "@/src/components/Chart/BarChart/AnyBarChart";
-import ProfileRatingsCard from "@/src/components/Profiles/ProfileRatingsCard";
+import ProfileRatingsCardConferences from "@/src/components/Profiles/ProfileRatingsCardConferences";
 import { useGetPostsForGraphMutation } from "@/src/store/api/serverApi";
 import { useTypedSelector } from "@/src/hooks/useTypedSelector";
 import {
@@ -41,18 +41,19 @@ const PostsArticlePlotWithCard = () => {
     const terming_cutting = useTypedSelector(selectTermingCutting);
     const time_range = useTypedSelector(selectTimeRange);
     const thesaurus_path = useTypedSelector(selectThesaurusPath);
-    const selected_authors = useTypedSelector(selectAuthors);
+    const selected_conferences = useTypedSelector(selectAuthors);
     const selected_laboratories = useTypedSelector(selectLaboratories);
     const selected_works = useTypedSelector(selectWorks);
-
+    
     const [getPosts, _] = useGetPostsForGraphMutation();
     useEffect(() => {
         setLoading(true);
         setCurItem(null);
 
-        if ((selected_authors.length > 0 && selected_works.length > 0) || selected_laboratories.length > 0) {
+
+        if ((selected_conferences.length > 0 && selected_works.length > 0) || selected_laboratories.length > 0) {
             const req_authors = {
-                selected_authors: selected_authors.map(item => item.id),
+                selected_conferences: selected_conferences.map(item => item.id),
                 selected_works_id: selected_works.map(item => item.id),
                 level: level,
                 selected_scheme_id: graph_type,
@@ -61,12 +62,12 @@ const PostsArticlePlotWithCard = () => {
                 include_common_terms: scientific_terms,
                 include_management_theory: "значение_include_management_theory",
                 path: thesaurus_path,
-                selected_type: "authors",
+                selected_type: "conferences",
                 years: time_range
             } as PostsForGraphRequest;
 
             const req_labs = {
-                selected_authors: selected_laboratories.map(item => item.div_id),
+                selected_conferences: selected_laboratories.map(item => item.div_id),
                 selected_works_id: selected_works.map(item => item.id),
                 level: level,
                 selected_scheme_id: graph_type,
@@ -78,7 +79,7 @@ const PostsArticlePlotWithCard = () => {
                 selected_type: "labs",
                 years: time_range
             } as PostsForGraphRequest;
-            
+
 
             const authors_resp = getPosts(req_authors);
             const labs_resp = getPosts(req_labs);
@@ -117,15 +118,16 @@ const PostsArticlePlotWithCard = () => {
     }, [
         graph_type, scientific_terms, level,
         category_cutting, terming_cutting, time_range, selected_laboratories,
-        thesaurus_path, selected_authors, selected_works,
+        thesaurus_path, selected_conferences, selected_works,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     ]);
 
+
     return (
-        selected_authors.length > 0 ? (
+        selected_conferences.length > 0 ? (
             <Stack direction={"row"} width={'80%'} alignSelf={'center'} spacing={2}>
                 {loading ? <Loader /> :
-                    <AnyBarChart data={selected_authors.length === 0 && selected_laboratories.length === 0 ? [] : chartData || []}
+                    <AnyBarChart data={selected_conferences.length === 0 && selected_laboratories.length === 0 ? [] : chartData || []}
                                  onClick={(item) => {
                                      if (item?.activePayload?.at(0)) {
                                          const cur_item = item?.activePayload?.at(0).payload;
@@ -133,11 +135,11 @@ const PostsArticlePlotWithCard = () => {
                                      }
                                  }}
                                  colors={(author_laboratory_id) => {
-                                     const index = selected_authors.findIndex(a => a.id === author_laboratory_id);
+                                     const index = selected_conferences.findIndex(a => a.id === author_laboratory_id);
                                      return generateColor(index);
                                  }}
                                  formatter={(author_laboratory_id) => {
-                                     return selected_authors.find(a => a.id === author_laboratory_id)?.value || selected_laboratories.find(l => l.div_id === author_laboratory_id)?.div_name || "";
+                                     return selected_conferences.find(a => a.id === author_laboratory_id)?.value || selected_laboratories.find(l => l.div_id === author_laboratory_id)?.div_name || "";
                                  }}
                                  customTooltip={({ active, payload, label }: {
                                      active: boolean,
@@ -153,7 +155,7 @@ const PostsArticlePlotWithCard = () => {
                                                      return key !== "name";
                                                  }).map(([author_laboratory_id, value], index) => {
                                                      return <p
-                                                         key={index} className="intro">{`${selected_authors.find(a => a.id === author_laboratory_id)?.value || selected_laboratories.find(l => l.div_id === author_laboratory_id)?.div_name || ""}: ${typeof value === "number" ? Math.round(value * 1000) / 1000 : value}`}</p>;
+                                                         key={index} className="intro">{`${selected_conferences.find(a => a.id === author_laboratory_id)?.value || selected_laboratories.find(l => l.div_id === author_laboratory_id)?.div_name || ""}: ${typeof value === "number" ? Math.round(value * 1000) / 1000 : value}`}</p>;
                                                  })}
                                              </div>
                                          );
@@ -162,7 +164,7 @@ const PostsArticlePlotWithCard = () => {
                                  }}
                     />}
                 {<Box>
-                    <ProfileRatingsCard curItem={curItem}/>
+                    <ProfileRatingsCardConferences curItem={curItem}/>
                 </Box>}
             </Stack>
         ) : null

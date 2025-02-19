@@ -30,7 +30,7 @@ const ProfileRatingsCard = ({
 }) => {
 
 
-    const selected_authors = useTypedSelector(selectAuthors)
+    const selected_journals = useTypedSelector(selectAuthors)
     const selected_laboratories = useTypedSelector(selectLaboratories)
     const selected_works = useTypedSelector(selectWorks)
 
@@ -81,7 +81,7 @@ const ProfileRatingsCard = ({
 
 
             const a_req = {
-                selected_authors: tp ? selected_laboratories.map(item => item.div_id) : selected_authors.map(item => item.id),
+                selected_journals: tp ? selected_laboratories.map(item => item.div_id) : selected_journals.map(item => item.id),
                 selected_works_id: selected_works.map(item => item.id),
                 level: 1,
                 selected_scheme_id: 4,
@@ -90,12 +90,12 @@ const ProfileRatingsCard = ({
                 include_common_terms: scientific_terms,
                 include_management_theory: "значение_include_management_theory",
                 path: path,
-                selected_type: tp ? "labs" : "authors",
+                selected_type: tp ? "labs" : "journals",
                 years: time_range
             } as PostsForGraphRequest
 
             const l_req = {
-                selected_authors: tp ? selected_laboratories.map(item => item.div_id) : selected_authors.map(item => item.id),
+                selected_journals: tp ? selected_laboratories.map(item => item.div_id) : selected_journals.map(item => item.id),
                 selected_works_id: selected_works.map(item => item.id),
                 level: level,
                 selected_scheme_id: graph_type,
@@ -104,7 +104,7 @@ const ProfileRatingsCard = ({
                 include_common_terms: scientific_terms,
                 include_management_theory: "значение_include_management_theory",
                 path: path,
-                selected_type: tp ? "labs" : "authors",
+                selected_type: tp ? "labs" : "journals",
                 years: time_range
             } as PostsForGraphRequest
             getPosts(a_req)
@@ -120,7 +120,6 @@ const ProfileRatingsCard = ({
     const isPageLoading = isPostsForGraphLoading || isArticleRatingLoading;
 
     const isDataPresented = postForGraphData && articleRatingData;
-
     return (
         /*
         <Card
@@ -128,7 +127,7 @@ const ProfileRatingsCard = ({
         */
 
         //*
-        selected_authors.length > 0 ? (
+        selected_journals.length > 0 ? (
             <Card sx={{
                 marginTop: "20px",
                 height: "500px",
@@ -191,7 +190,7 @@ const ProfileRatingsCard = ({
 
                         </Stack>
                         : <Typography
-                            sx={{color: "rgb(134, 142, 150)"}}>{"После клика на диаграмму здесь будет подробная информация об авторах"}</Typography>
+                            sx={{color: "rgb(134, 142, 150)"}}>{"После клика на диаграмму здесь будет подробная информация о журналах"}</Typography>
                     }
                 </Stack>
             </Card>

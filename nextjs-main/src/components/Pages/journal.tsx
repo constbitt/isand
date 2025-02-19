@@ -1,6 +1,7 @@
 import AllPersonHat from "@/src/components/Cards/AllPersonHat";
 import TabsComponent from "@/src/components/Tabs/TabsComponent";
 import { useGetJournalAuthorQuery, useGetJournalInfoQuery, useGetJournalPublQuery } from "@/src/store/api/serverApiV3";
+import { useGetJournalByNameInfoQuery, useGetJournalAuthorsQuery, useGetJournalPublicationsQuery } from "@/src/store/api/serverApiV2_5";
 import { Box, CircularProgress, Container, Stack } from "@mui/material";
 import Head from "next/head";
 import { NextRouter, useRouter } from "next/router";
@@ -8,6 +9,8 @@ import React, { FC, ReactElement, useEffect, useState } from "react";
 import ScienceObjectReview from "../CenterContainer/ScienceObjectReview";
 import UniversalCard from "../Cards/UniversalCard";
 import AuthorCard from "../Cards/AuthorCard";
+import AuthorsTab from "../Tabs/AuthorsTab";
+import PublicationsTab from "../Tabs/PublicationsTab";
 
 
 const Authors: FC<{id: number}> = ({id}): ReactElement => {
@@ -47,11 +50,24 @@ const JournalPage: React.FC = (): React.ReactElement => {
     const {data, isLoading} = useGetJournalInfoQuery(idJournal, {skip: idJournal < 0}) 
 
     useEffect(() => setIdJournal(parseInt(router.query.creature_id as string ?? '-1')), [router.isReady])
+
+    const {data: journalData} = useGetJournalByNameInfoQuery(data?.name ?? '')
     
+    // Проверяем наличие данных
+    const journalIsandId = journalData && journalData[0]?.journal_isand_id
+
+    const { data: authorsData } = useGetJournalAuthorsQuery(journalIsandId ?? -1, { 
+        skip: !journalIsandId 
+    });
+    const { data: publicationsData, isLoading: publicationsLoading } = useGetJournalPublicationsQuery(journalIsandId ?? -1, { 
+        skip: !journalIsandId 
+    });
+
+
     const tabs: {label: string, component: React.ReactNode}[] = [
         {label: 'Обзор', component: <ScienceObjectReview idAuthor={idJournal} citations={0} description="" geoposition="" ids={[]} publications={data?.total_publications ?? 0} objectType="journals" />}, 
-        {label: 'Публикации', component: <Publs id={idJournal} />}, 
-        {label: 'Авторы', component: <Authors id={idJournal} />},
+        { label: "Публикации", component: <PublicationsTab publications={publicationsData || []} isLoading={publicationsLoading} /> },
+        { label: "Авторы", component: <AuthorsTab authors={authorsData || []} isLoading={isLoading} /> },
     ]
 
     if (isLoading || !data) {

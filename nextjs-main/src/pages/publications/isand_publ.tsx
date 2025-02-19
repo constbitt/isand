@@ -13,17 +13,34 @@ import Head from 'next/head';
 import { NextRouter, useRouter } from 'next/router';
 import AuthorCard from '@/src/components/Cards/AuthorCard';
 import Link from 'next/link';
+import { useGetPrndDataQuery } from "@/src/store/api/serverApiFW";
 
 
 const PublicationPage: React.FC = (): React.ReactElement => {
     const [idPubl, setIdPubl] = useState<number>(-1);
     const [scroll, setScroll] = useState<boolean>(false);
+    const [storageId, setStorageId] = useState<number | null>(null);
 
     const router: NextRouter = useRouter();
     //const { data, isLoading } = useGetPublInfoQuery(idPubl, { skip: idPubl < 0 });
     const { data, isLoading } = useGetPublCardInfoQuery(idPubl, { skip: idPubl < 0 });
     const { data: publ, isLoading: isLoadingPublication } = useGetPublIsandInfoQuery(idPubl, { skip: idPubl < 0 });
     
+
+
+    const { data: prndData } = useGetPrndDataQuery();
+    //console.log(prndData);
+
+    useEffect(() => {
+        if (prndData && data && data.length > 0) {
+            const foundPrnd = prndData.find(item => item[2] === data[0].publ_prnd_id);
+            if (foundPrnd) {
+                setStorageId(foundPrnd[1]);
+            }
+        }
+    }, [prndData, data]);
+
+
     useEffect(() => {
         if (router.isReady) {
             if (!router.query.creature_id) {
@@ -47,7 +64,7 @@ const PublicationPage: React.FC = (): React.ReactElement => {
     const [authorsList, setAuthorsList] = useState<{ author_fio: string; author_isand_id: string }[]>([]);
 
     useEffect(() => {
-        if (data && data.length > 0) {
+        if (publ) {
             const authorsFios = publ[0].author_fios.split(';').map(fio => fio.trim());
             const authorsIds = publ[0].author_isand_ids.split(';').map(id => id.trim());
             setAuthorsList(authorsFios.map((fio, index) => ({
@@ -58,18 +75,35 @@ const PublicationPage: React.FC = (): React.ReactElement => {
         
     }, [publ]);
 
-/*
-    useEffect(() => {
-        data?.authors.length > 3 && setScroll(true);
-    }, [data]);
-    
-    /*
     const tabs: { label: string, component: React.ReactNode }[] = [
-        { label: 'Факторы', component: <RadarComponent level={1} id={[idPubl]} include_common_terms={0} object_type='publications' /> },
-        { label: 'Подфакторы', component: <RadarComponent level={2} id={[idPubl]} include_common_terms={0} object_type='publications' /> },
-        { label: 'Термины', component: <RadarComponent level={3} id={[idPubl]} include_common_terms={0} object_type='publications' /> },
+        { 
+            label: 'Факторы', 
+            component: <RadarComponent 
+                level={1} 
+                id={storageId ? [storageId] : [idPubl]} 
+                include_common_terms={0} 
+                object_type='publications' 
+            /> 
+        },
+        { 
+            label: 'Подфакторы', 
+            component: <RadarComponent 
+                level={2} 
+                id={storageId ? [storageId] : [idPubl]} 
+                include_common_terms={0} 
+                object_type='publications' 
+            /> 
+        },
+        { 
+            label: 'Термины', 
+            component: <RadarComponent 
+                level={3} 
+                id={storageId ? [storageId] : [idPubl]} 
+                include_common_terms={0} 
+                object_type='publications' 
+            /> 
+        },
     ];
-    */
 
     if (isLoading || !data || data.length === 0 || !publ || publ.length === 0) {
         return (
@@ -105,7 +139,7 @@ const PublicationPage: React.FC = (): React.ReactElement => {
                         <Stack spacing={2} sx={{ width: '60%', minWidth: '700px' }}>
                             <Typography variant='h5'>Аннотация</Typography>
                             <Typography>{(publication as any).annotation || '{ У публикации не найдена аннотация }'}</Typography>
-                            {/*<TabsComponent tabs={tabs} variant='fullWidth' />*/}
+                            {storageId && <TabsComponent tabs={tabs} variant='fullWidth' />}
                         </Stack>
                         <Stack sx={{ width: '35%', minWidth: '200px' }} spacing={2}>
                             <Typography variant='h5'>{`Авторы (${authorsList?.length ?? 0})`}</Typography>

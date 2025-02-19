@@ -54,6 +54,36 @@ export const serverApi = createApi({
                 }
             }
         }),
+        getJournals: builder.query<Author[], void>({
+            queryFn: async arg => {
+                try {
+                    const baseQueryReturnValue = await axios.get<{ [_: string]: string }>(`${api_server}/journals`)
+
+                    return {
+                        data: Object.entries(baseQueryReturnValue.data).map(([id, value]) => {
+                            return {id, value} as Author;
+                        })
+                    }
+                } catch (error) {
+                    return {error: {status: 0, data: String(error)}}
+                }
+            }
+        }),
+        getConferences: builder.query<Author[], void>({
+            queryFn: async arg => {
+                try {
+                    const baseQueryReturnValue = await axios.get<{ [_: string]: string }>(`${api_server}/conferences`)
+
+                    return {
+                        data: Object.entries(baseQueryReturnValue.data).map(([id, value]) => {
+                            return {id, value} as Author;
+                        })
+                    }
+                } catch (error) {
+                    return {error: {status: 0, data: String(error)}}
+                }
+            }
+        }),
         getPath: builder.query<Path[], { level: number }>({
             query: (arg) => `/pathes?level=${arg.level}`
         }),
@@ -115,6 +145,72 @@ export const serverApi = createApi({
                 }
             }
         }),
+        getJournalsPosts: builder.query<AuthorsPostsPreparedResponseItem[], AuthorsPostsRequest>({
+            queryFn: async (arg, api, extraOptions, baseQuery) => {
+                const res: AuthorsPostsPreparedResponseItem[] = []
+                const promiseArr = []
+                try {
+
+                    for (const author of arg.authors) {
+                        promiseArr.push(baseQuery(`/journals_posts?journals_id=${author.author_id}`))
+                    }
+
+                    const respAll = await Promise.all(promiseArr)
+
+                    for (const resp of respAll) {
+                        if (resp.error) {
+                            return {error: resp.error}
+                        }
+
+                        if (!resp.data) {
+                            return {error: {status: 0, data: "Null response"}}
+                        }
+
+                        res.push(...Object.entries(resp.data).map(([id, name]) => {
+                            return {
+                                id, name
+                            } as AuthorsPostsPreparedResponseItem
+                        }))
+                    }
+                    return {data: res}
+                } catch (error) {
+                    return {error} as ErrorType
+                }
+            }
+        }),
+        getConferencesPosts: builder.query<AuthorsPostsPreparedResponseItem[], AuthorsPostsRequest>({
+            queryFn: async (arg, api, extraOptions, baseQuery) => {
+                const res: AuthorsPostsPreparedResponseItem[] = []
+                const promiseArr = []
+                try {
+
+                    for (const author of arg.authors) {
+                        promiseArr.push(baseQuery(`/conferences_posts?conference_id=${author.author_id}`))
+                    }
+
+                    const respAll = await Promise.all(promiseArr)
+
+                    for (const resp of respAll) {
+                        if (resp.error) {
+                            return {error: resp.error}
+                        }
+
+                        if (!resp.data) {
+                            return {error: {status: 0, data: "Null response"}}
+                        }
+
+                        res.push(...Object.entries(resp.data).map(([id, name]) => {
+                            return {
+                                id, name
+                            } as AuthorsPostsPreparedResponseItem
+                        }))
+                    }
+                    return {data: res}
+                } catch (error) {
+                    return {error} as ErrorType
+                }
+            }
+        }),
         translateId: builder.mutation<TranslateIdResponse, TranslateIdRequest>({
             query: (arg) => ({
                 url: "/translate_id",
@@ -148,9 +244,11 @@ export const {
     useGetPathQuery,
     useGetRatingsQuery,
     useGetAuthorsPostsQuery,
+    useGetJournalsPostsQuery,
+    useGetConferencesPostsQuery,
     useTranslateIdMutation,
     util: {getRunningQueriesThunk},
 } = serverApi;
 
 // export endpoints for use in SSR
-export const {getAuthors, getPath, getRatings} = serverApi.endpoints;
+export const {getAuthors, getJournals, getConferences, getPath, getRatings} = serverApi.endpoints;

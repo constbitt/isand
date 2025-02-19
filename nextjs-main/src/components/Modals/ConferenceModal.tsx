@@ -24,9 +24,6 @@ const ConferenceModal: FC<ConferenceModalProps> = ({ open, handleClose, id }): R
         setTabIndex(newValue);
     };
     const [hasModalBelow, setHasModalBelow] = useState(false);
-    console.log(data);
-    console.log(authorsData);
-    console.log(publicationsData);
     const tabs = [
         { label: "Обзор", component: <ConferenceOverviewTab conference={data?.[0] || {}} authorsCount={authorsData?.length || 0} publicationsCount={publicationsData?.length || 0} /> },
         { label: "Публикации", component: <PublicationsTab publications={publicationsData || []} isLoading={publicationsLoading} /> },

@@ -40,7 +40,6 @@ const PublicationsPage = () => {
         setShowResults(true);
     };
 
-    // Добавляем обработчик нажатия клавиш
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') {
             handleSearch();
@@ -120,9 +119,38 @@ const PublicationsPage = () => {
                                 <Link key={publication.publ_isand_id} href={`/publications/isand_publ?creature_id=${publication.publ_isand_id}`} passHref>
                                     <Card sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px', cursor: 'pointer' }}>
                                         <Typography variant="h6">{publication.publ_name}</Typography>
-                                        <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
-                                        <Typography variant="body2">Год: {publication.year}</Typography>
-                                        <Typography variant="body2">Источник: {publication.ext_source}</Typography>
+                                        <Typography 
+                                            variant='body1' 
+                                            sx={{ 
+                                                color: '#1B4596',
+                                                fontFamily: 'Nunito Sans, sans-serif',
+                                                textAlign: 'left',
+                                                width: '100%',
+                                                fontWeight: 700
+                                            }}
+                                        >
+                                            Авторы: {publication.author_fios}
+                                        </Typography>
+                                        <Typography 
+                                            variant='body2' 
+                                            sx={{
+                                                color: 'text.secondary',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            Год: {publication.year}
+                                        </Typography>
+                                        <Typography 
+                                            variant='body2' 
+                                            sx={{
+                                                color: 'text.secondary',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            Источник: {publication.ext_source}
+                                        </Typography>
                                     </Card>
                                 </Link>
                             ))}
@@ -138,9 +166,38 @@ const PublicationsPage = () => {
                                 <Link key={publication.publ_isand_id} href={handleHref(publication.fileStoreId)} passHref>
                                     <Card sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px', cursor: 'pointer' }}>
                                         <Typography variant="h6">{publication.publ_name}</Typography>
-                                        <Typography variant="body2">Авторы: {publication.author_fios}</Typography>
-                                        <Typography variant="body2">Год: {publication.year}</Typography>
-                                        <Typography variant="body2">Источник: {publication.ext_source}</Typography>
+                                        <Typography 
+                                            variant='body1' 
+                                            sx={{ 
+                                                color: '#1B4596',
+                                                fontFamily: 'Nunito Sans, sans-serif',
+                                                textAlign: 'left',
+                                                width: '100%',
+                                                fontWeight: 700
+                                            }}
+                                        >
+                                            Авторы: {publication.author_fios}
+                                        </Typography>
+                                        <Typography 
+                                            variant='body2' 
+                                            sx={{
+                                                color: 'text.secondary',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            Год: {publication.year}
+                                        </Typography>
+                                        <Typography 
+                                            variant='body2' 
+                                            sx={{
+                                                color: 'text.secondary',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            Источник: {publication.ext_source}
+                                        </Typography>
                                     </Card>
                                 </Link>
                             ))}

@@ -15,6 +15,7 @@ import { alertationSlice } from './slices/alertationSlice';
 import { serverApiV5 } from './api/serverApiV5';
 import { serverApiV6 } from './api/serverApiV6';
 import { serverApiV2_5 } from './api/serverApiV2_5';
+import { serverApiFW, fetchPrndData } from './api/serverApiFW';
 
 const makeStore = () => {
     return configureStore({
@@ -26,6 +27,7 @@ const makeStore = () => {
             [serverApiV5.reducerPath]: serverApiV5.reducer,
             [serverApiV6.reducerPath]: serverApiV6.reducer,
             [serverApiV2_5.reducerPath]: serverApiV2_5.reducer,
+            [serverApiFW.reducerPath]: serverApiFW.reducer,
             [profilesSlice.name]: profilesSlice.reducer,
             [ratingsSlice.name]: ratingsSlice.reducer,
             [searchApiSlice.name] : searchApiSlice.reducer,
@@ -41,6 +43,7 @@ const makeStore = () => {
             .concat(serverApiV5.middleware)
             .concat(serverApiV6.middleware)
             .concat(serverApiV2_5.middleware)
+            .concat(serverApiFW.middleware)
     });
 };
 

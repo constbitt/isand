@@ -12,7 +12,6 @@ export const getServerSideProps = wrapper.getServerSideProps(
     (store) => async () => {
       await store.dispatch(getAuthors.initiate());
       const authorsResponse = getAuthors.select()(store.getState());
-  
       return {
         props: {
           authorsResponse,

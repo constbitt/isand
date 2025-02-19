@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import {getAuthors, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
+import {getConferences, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
 
 
 import {wrapper} from "@/src/store/store";
@@ -34,7 +34,7 @@ import StyledSlider from "@/src/components/Sliders/Slider";
 import Range from "@/src/components/Sliders/Range";
 import {graphTypeLabel, graphTypeTooltip} from "@/src/configs/profileConfig";
 import SelectTooltip from "@/src/components/Tooltips/SelectTooltip";
-import PostsArticlePlotWithCard from "@/src/components/Profiles/PostsArticlePlotWithCard";
+import PostsArticlePlotWithCardConferences from "@/src/components/Profiles/PostsArticlePlotWithCardConferences";
 import StyledCheckbox from "@/src/components/Fields/StyledCheckbox";
 import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
 import Head from "next/head";
@@ -83,7 +83,7 @@ export default function Profiles({
     return ( 
         <>
             <Head>
-                <title>Профили ученых и организаций</title>
+                <title>Профили конференций</title>
             </Head>
             <Stack sx={{height: "100%"}} mt={2} spacing={3}>
 
@@ -94,7 +94,7 @@ export default function Profiles({
                                             onClick={() => {
                                                 setOpenMenu(true)
                                             }}>
-                            {"Выбор авторов"}
+                            {"Выбор конференций"}
                         </StyledContainedButton>
 
 
@@ -173,7 +173,7 @@ export default function Profiles({
                     }} marks={true}/>
                 </Stack>
 
-                <PostsArticlePlotWithCard/>
+                <PostsArticlePlotWithCardConferences/>
 
 
             </Stack>
@@ -184,7 +184,7 @@ export default function Profiles({
 export const getServerSideProps = wrapper.getServerSideProps(
     (store) => async () => {
 
-        const authorsResponse = await store.dispatch(getAuthors.initiate());
+        const authorsResponse = await store.dispatch(getConferences.initiate());
 
         
         const laboratoriesResponse = await store.dispatch(getOrganization.initiate())

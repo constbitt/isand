@@ -1,5 +1,7 @@
 export interface PostsForGraphRequest {
-    selected_authors: string[],
+    selected_authors?: string[],
+    selected_journals?: string[],
+    selected_conferences?: string[],
     selected_works_id: string[],
     level: number,
     selected_scheme_id: number,

@@ -42,6 +42,9 @@ export const serverApiV2_5 = createApi({
         getPublicationsByAuthorId: builder.query({
             query: (id) => `authors/card/get_publications?id=${id}`,
         }),
+        getAuthorsActivity: builder.query({
+            query: (id) => `authors/analysis/get_activity?id=${id}&begin_year=1900`,
+        }),
         getPublIsandInfo: builder.query<Publication[], string | number>({
             query: (id) => ({
                 url: `/publications/search`,
@@ -77,8 +80,14 @@ export const serverApiV2_5 = createApi({
         getJournalInfo: builder.query<any, number>({
             query: (id) => `/journals/card/get_info?id=${id}`,
         }),
+        getJournalByNameInfo: builder.query<any, string>({
+            query: (name) => `/journals/search?name=${name}`,
+        }),
         getConferenceCardInfo: builder.query<any, number>({
             query: (id) => `/conferences/card/get_info?id=${id}`,
+        }),
+        getConferenceByNameInfo: builder.query<any, string>({   
+            query: (name) => `/conferences/search?name=${name}`,
         }),
         getOrgCardInfo: builder.query<any[], number>({
             query: (id) => `/organizations/card/get_info?id=${id}`,
@@ -113,6 +122,7 @@ export const {
     useGetAuthorByPrndQuery,
     useGetAuthorByFioQuery,
     useGetPublicationsByAuthorIdQuery,
+    useGetAuthorsActivityQuery,
     useGetPublIsandInfoQuery,
     useSearchPublicationsQuery,
     useSearchPublByTitleQuery,
@@ -121,7 +131,9 @@ export const {
     useGetOrgInfoQuery,
     useGetConferenceInfoQuery,
     useGetJournalInfoQuery,
+    useGetJournalByNameInfoQuery,
     useGetConferenceCardInfoQuery,
+    useGetConferenceByNameInfoQuery,
     useGetOrgCardInfoQuery,
     useGetOrgAuthorsQuery,
     useGetOrgPublicationsQuery,

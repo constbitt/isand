@@ -27,7 +27,6 @@ const Results: React.FC<{ name: string }> = ({ name }): React.ReactElement => {
         };
         return fields[name];
     };
-
     const handleTotalName = (option: any) => {
         const fields: Record<string, string> = {
             'publications': 'публикаций',

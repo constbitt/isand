@@ -7,13 +7,17 @@ import { Box, Typography, Container, Stack, IconButton, MenuItem, CircularProgre
 import TabsComponent from "@/src/components/Tabs/TabsComponent";
 import { useGetAuthorInfoQuery } from '@/src/store/api/serverApiV3';
 import { getAuthors, useGetAuthorsPostsQuery } from "@/src/store/api/serverApi";
-import { useGetAuthorJournalsQuery, useGetAuthorConferencesQuery, useGetAuthorByPrndQuery, useGetOrgInfoQuery, useGetAuthorByFioQuery } from "@/src/store/api/serverApiV2_5";
+import { useGetAuthorJournalsQuery, useGetAuthorConferencesQuery, useGetAuthorByPrndQuery, useGetOrgInfoQuery, useGetAuthorByFioQuery, useGetPublicationsByAuthorIdQuery } from "@/src/store/api/serverApiV2_5";
 import AuthorTabContent from '@/src/components/CenterContainer/AuthorTabContent';
 import { parseStringToArray } from '@/src/tools/parseStringToArray';
 import { useInView } from "react-intersection-observer";
 import { wrapper } from '@/src/store/store';
 import { Author } from '@/src/store/types/authorTypes';
 import { ApiResponse } from '@/src/store/types/apiTypes';
+import AuthorOverviewTab from "../Tabs/AuthorOverviewTab";
+import PublicationsTab from "../Tabs/PublicationsTab";
+import JournsConfsTab from "../Tabs/JournsConfsTab";
+import OrganisationsTab from "../Tabs/OrganisationsTab";
 
 const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = ({ authorsResponse }) => {
     const [idAuthor, setIdAuthor] = useState<number>(-1)
@@ -23,9 +27,9 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
         const urlParams = new URLSearchParams(url);
         return urlParams.get(parameter);
     };
-    
     const { data: authors, error: authorsError } = authorsResponse;
     const authorFio = typeof window !== 'undefined' ? getQueryParameter(window.location.href, "author_fio") || "" : "";
+
     useEffect(() => {
         
         if (authors && authorFio) {
@@ -40,8 +44,6 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
     const { data: authorByFio, isLoading: loadingByFio } = useGetAuthorByFioQuery<any>(authorFio || "");
     const { data: author, isLoading } = useGetAuthorInfoQuery(idAuthor, { skip: idAuthor < 0 });
     const { data: authorByPrnd } = useGetAuthorByPrndQuery(idAuthor, { skip: idAuthor < 0 });
-    
-
     const authorIsandId = idAuthor < 0 && !loadingByFio && authorByFio ? authorByFio[0].author_isand_id : authorByPrnd ? authorByPrnd[0].author_isand_id : null;
     const { data: authorJournals } = useGetAuthorJournalsQuery(authorIsandId, { skip: !authorIsandId });
     const { data: authorConferences } = useGetAuthorConferencesQuery(authorIsandId, { skip: !authorIsandId });
@@ -50,12 +52,18 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
     const [currentId, setCurrentId] = useState(0);
     const [allOrganisations, setallOrganisations] = useState<any[]>([]);
     const { data, error } = useGetOrgInfoQuery(isand_ids[currentId]);
+    const { data: publications, isLoading: publicationsLoading } = useGetPublicationsByAuthorIdQuery(authorIsandId, { skip: authorIsandId < 0 });
+
+
+    
     useEffect(() => {
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && allOrganisations.length < isand_ids.length) {
             setallOrganisations(prev => [...prev, ...data]);
             setCurrentId(prev => prev + 1);
+            
         }
     }, [data]);
+
 
     useEffect(() => {
         if (inView && !isLoading) {
@@ -69,13 +77,19 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
     }, { skip: idAuthor < 0 });
   
     const tabs = [
-        { label: "Обзор", component: <AuthorTabContent index={0} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-        { label: "Публикации", component: <AuthorTabContent index={1} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-        { label: "Организации", component: <AuthorTabContent index={2} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-        { label: "Журналы и конференции", component: <AuthorTabContent index={3} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-      ];
+        { 
+          label: "Обзор", component: <AuthorOverviewTab prndAuthor={author || authorByPrnd} matchingAuthorId={idAuthor} prndAuthorLoading={isLoading} /> 
+        },
+        { 
+          label: "Публикации", 
+          component: <PublicationsTab publications={publications || []} isLoading={publicationsLoading} /> 
+        },
+        { label: "Организации", component: <OrganisationsTab organisations={allOrganisations || []} isLoading={isLoading} /> },
+        { label: "Журналы и конференции", component: <JournsConfsTab journals={authorJournals || []} conferences={authorConferences || []} isLoading={isLoading} /> },
+        ];
     
-      if (!loadingByFio && authorByFio && idAuthor < 0 ) {
+      if (!loadingByFio && authorByFio) {
+        
         return (
             <>
                 <Head>
@@ -88,8 +102,8 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
                         <>
                             <AuthorPersonHatCard
                             author={{
-                                a_fio: authorByFio[0].author_fio,
-                                a_aff_org_name: authorByFio[0].org_isand_ids,
+                                a_fio: authorFio || authorByFio[0].author_fio,
+                                a_aff_org_name: authorByFio[0].org_names || authorByPrnd[0].org_names || "Не указано",
                                 avatar: authorByFio[0].avatar,
                             }}
                             sx={{
@@ -140,7 +154,7 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
                     <>
                         <AuthorPersonHatCard
                         author={{
-                            a_fio: author.fio,
+                            a_fio: author.fio || authorByPrnd[0].author_fio,
                             a_aff_org_name: author.affiliation,
                             avatar: author.avatar,
                         }}

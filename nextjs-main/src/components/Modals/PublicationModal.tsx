@@ -9,6 +9,7 @@ import PublicationsTab from "../Tabs/PublicationsTab";
 import JournsConfsTab from "../Tabs/JournsConfsTab";
 import AuthorsTab from "../Tabs/AuthorsTab";
 import PublOverviewTab from "../Tabs/PublOverviewTab";
+import { useGetPrndDataQuery } from "@/src/store/api/serverApiFW";
 
 interface PublicationModalProps {
     open: boolean;
@@ -29,6 +30,18 @@ const PublicationModal: FC<PublicationModalProps> = ({ open, handleClose, id, is
     const { data: publCardInfo } = useGetPublCardInfoQuery(publIsandId as number, { 
         skip: !open || !publIsandId
     });
+    const [storageId, setStorageId] = useState<number | null>(null);
+
+    const { data: prndData } = useGetPrndDataQuery();
+    
+    useEffect(() => {
+        if (prndData && publCardInfo) {
+            const foundPrnd = prndData.find(item => item[2] === publCardInfo[0].publ_prnd_id);
+            if (foundPrnd) {
+                setStorageId(foundPrnd[1]);
+            }
+        }
+    }, [prndData, publCardInfo]);
 /*
     const tabs: { label: string, component: React.ReactNode }[] = [
         { label: 'Факторы', component: <RadarComponent level={1} id={[publIsandId as number]} include_common_terms={0} object_type='publications' /> },
@@ -59,7 +72,8 @@ const PublicationModal: FC<PublicationModalProps> = ({ open, handleClose, id, is
                     annotation: (publCardInfo[0] as any).annotation || 'Нет аннотации',
                     publ_type: (publCardInfo[0] as any).publ_type || 'Не указан',
                     collect_type: (publCardInfo[0] as any).collect_type || 'Не указан',
-                    collect_name: (publCardInfo[0] as any).collect_name || 'Не указано'
+                    collect_name: (publCardInfo[0] as any).collect_name || 'Не указано',
+                    storageId: storageId
                 }} />
             ) : (
                 <Typography>Загрузка данных...</Typography>

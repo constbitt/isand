@@ -22,11 +22,25 @@ export const cards: readonly Card[] = [
         src: DeepsearchImg,
     },
     {
-        name: 'Профили\n ученых',
-        text: 'Тематические профили ученых',
+        name: 'Тематические\n профили',
+        text: 'Профили',
         link: '/profiles',
         src: ProfilesImg,
     },
+    /*
+    {
+        name: 'Профили\n журналов',
+        text: 'Тематические профили журналов',
+        link: '/journals',
+        src: ProfilesImg,
+    },
+    {
+        name: 'Профили\n конференций',
+        text: 'Тематические профили конференций',
+        link: '/conferences',
+        src: ProfilesImg,
+    },
+    */
     {
         name: 'Тематическое\n ранжирование',
         text: 'Ранжированный список ученых по заданным параметрам',

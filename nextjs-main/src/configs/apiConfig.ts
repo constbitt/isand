@@ -9,3 +9,5 @@ export const api_v3_server = "https://kb-isand.ipu.ru/search-api"
 export const api_v4_server = "https://kb-isand.ipu.ru/account_api"
 
 export const api_v5_server = "https://kb-isand.ipu.ru/grapher"
+
+export const api_fw_server = "https://kb-isand.ipu.ru/filewatcher"

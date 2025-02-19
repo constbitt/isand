@@ -8,10 +8,14 @@ import { useGetAuthorInfoQuery } from '@/src/store/api/serverApiV3';
 import AuthorPersonHatCard from '@/src/components/Cards/AuthorPersonHat';
 import { NextRouter, useRouter } from 'next/router';
 import { useGetAuthorsPostsQuery } from "@/src/store/api/serverApi";
-import { useGetAuthorJournalsQuery, useGetAuthorConferencesQuery, useGetAuthorByPrndQuery, useGetOrgInfoQuery } from "@/src/store/api/serverApiV2_5";
+import { useGetAuthorJournalsQuery, useGetAuthorConferencesQuery, useGetAuthorByPrndQuery, useGetOrgInfoQuery, useGetPublicationsByAuthorIdQuery } from "@/src/store/api/serverApiV2_5";
 import AuthorTabContent from '@/src/components/CenterContainer/AuthorTabContent';
 import { parseStringToArray } from '@/src/tools/parseStringToArray';
 import { useInView } from "react-intersection-observer";
+import AuthorOverviewTab from "../Tabs/AuthorOverviewTab";
+import PublicationsTab from "../Tabs/PublicationsTab";
+import JournsConfsTab from "../Tabs/JournsConfsTab";
+import OrganisationsTab from "../Tabs/OrganisationsTab";
 
 const formatAuthorName = (authorString: string) => {
   return authorString.split(';').map(author => {
@@ -44,14 +48,14 @@ const AccountPageContent: FC = () => {
     const { data: authorPosts, isLoading: postsLoading } = useGetAuthorsPostsQuery({
       authors: [{ author_id: idAuthor.toString() }]
     });
-  
+    const { data: publications, isLoading: publicationsLoading } = useGetPublicationsByAuthorIdQuery(authorIsandId, { skip: authorIsandId < 0 });
     const isand_ids = authorByPrnd ? parseStringToArray(authorByPrnd[0].org_isand_ids) : [];
     const { ref, inView } = useInView();
     const [currentId, setCurrentId] = useState(0);
     const [allOrganisations, setallOrganisations] = useState<any[]>([]);
     const { data, error } = useGetOrgInfoQuery(isand_ids[currentId]);
     useEffect(() => {
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && allOrganisations.length < isand_ids.length) {
             setallOrganisations(prev => [...prev, ...data]);
             setCurrentId(prev => prev + 1);
         }
@@ -63,11 +67,20 @@ const AccountPageContent: FC = () => {
         }
     }, [inView, isLoading]);
 
+    const handleEditPage = () => {
+        router.push('/account/edit_page');
+    };
+
     const tabs = [
-        { label: "Обзор", component: <AuthorTabContent index={0} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-        { label: "Публикации", component: <AuthorTabContent index={1} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-        { label: "Организации", component: <AuthorTabContent index={2} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
-        { label: "Журналы и конференции", component: <AuthorTabContent index={3} author={author} isLoading={isLoading} authorPosts={authorPosts} postsLoading={postsLoading} authorJournals={authorJournals} authorConferences={authorConferences} idAuthor={idAuthor} allOrganisations={allOrganisations} /> },
+      { 
+        label: "Обзор", component: <AuthorOverviewTab prndAuthor={author} matchingAuthorId={idAuthor} prndAuthorLoading={isLoading} /> 
+      },
+      { 
+        label: "Публикации", 
+        component: <PublicationsTab publications={publications || []} isLoading={publicationsLoading} /> 
+      },
+      { label: "Организации", component: <OrganisationsTab organisations={allOrganisations || []} isLoading={isLoading} /> },
+      { label: "Журналы и конференции", component: <JournsConfsTab journals={authorJournals || []} conferences={authorConferences || []} isLoading={isLoading} /> },
       ];
   
 
@@ -166,7 +179,12 @@ const AccountPageContent: FC = () => {
               >
                   <Stack spacing={0}> 
                     <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Уведомления</MenuItem> 
-                    <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Изменение страниц</MenuItem> 
+                    <MenuItem 
+                        onClick={handleEditPage}
+                        sx={{ fontSize: '0.675rem', padding: '0px 4px' }}
+                    >
+                        Изменение страниц
+                    </MenuItem> 
                     <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Настройки аккаунта</MenuItem>
                     <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Меню администратора</MenuItem> 
                     <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px', color: '#AA0000' }}>Выход</MenuItem> 

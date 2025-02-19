@@ -15,7 +15,27 @@ interface JournalOverviewTabProps {
 const JournalOverviewTab: React.FC<JournalOverviewTabProps> = ({ journal, authorsCount, publicationsCount }) => {
     return (
         
-        <Box sx={{ padding: 2, paddingLeft: 20, maxHeight: '600px', overflowY: 'auto' }}>
+        <Box 
+            sx={{
+                height: 'calc(100vh - 300px)',
+                overflow: 'auto',
+                paddingLeft: 20,
+                '&::-webkit-scrollbar': {
+                    width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                    background: '#f1f1f1',
+                    borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                    background: '#888',
+                    borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                    background: '#555',
+                },
+            }}
+        >
 
             <Typography variant="h6" sx={{ marginBottom: 2 }}>
                 
