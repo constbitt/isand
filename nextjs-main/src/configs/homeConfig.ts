@@ -23,7 +23,7 @@ export const cards: readonly Card[] = [
     },
     {
         name: 'Тематические\n профили',
-        text: 'Профили',
+        text: 'Профили ученых, журналов, конференций',
         link: '/profiles',
         src: ProfilesImg,
     },

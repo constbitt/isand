@@ -1,12 +1,10 @@
 // @ts-nocheck
 
-import {getAuthors, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
-
-
+import {getAuthors, getJournals, getConferences, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
 import {wrapper} from "@/src/store/store";
 import {getOrganization, getRunningQueriesThunk as apiV2GetRunningQueriesThunk} from "@/src/store/api/serverApiV2";
 import React, {useState} from "react";
-import {MenuItem, Select, SelectChangeEvent, Stack, Typography} from "@mui/material";
+import {MenuItem, Select, SelectChangeEvent, Stack, Typography, Tabs, Tab} from "@mui/material";
 import {
     selectCategoriesCutting,
     selectGraphType,
@@ -22,7 +20,10 @@ import {
     setScientificTerms,
     setTermingCutting,
     setThesaurusPath,
-    setTimeRange
+    setTimeRange,
+    setAuthors,
+    setWorks,
+    setLaboratories
 } from "@/src/store/slices/profilesSlice";
 import {useTypedSelector} from "@/src/hooks/useTypedSelector";
 import {useTypedDispatch} from "@/src/hooks/useTypedDispatch";
@@ -35,72 +36,159 @@ import Range from "@/src/components/Sliders/Range";
 import {graphTypeLabel, graphTypeTooltip} from "@/src/configs/profileConfig";
 import SelectTooltip from "@/src/components/Tooltips/SelectTooltip";
 import PostsArticlePlotWithCard from "@/src/components/Profiles/PostsArticlePlotWithCard";
+import PostsArticlePlotWithCardJournals from "@/src/components/Profiles/PostsArticlePlotWithCardJournals";
+import PostsArticlePlotWithCardConferences from "@/src/components/Profiles/PostsArticlePlotWithCardConferences";
 import StyledCheckbox from "@/src/components/Fields/StyledCheckbox";
 import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
 import Head from "next/head";
 
-export default function Profiles({
-                                     authorsResponse,
+// Тип для идентификации типа сущности
+type EntityType = 'profiles' | 'journals' | 'conferences';
+
+export default function UnifiedProfiles({
+                                     profilesResponse,
+                                     journalsResponse,
+                                     conferencesResponse,
                                      laboratoriesResponse
                                  }: {
-    authorsResponse: ApiResponse<Author[]>,
+    profilesResponse: ApiResponse<Author[]>,
+    journalsResponse: ApiResponse<Author[]>,
+    conferencesResponse: ApiResponse<Author[]>,
     laboratoriesResponse: ApiResponse<Laboratory[]>
 }) {
 
-    const [openMenu, setOpenMenu] = useState(false)
-
-    const dispatch = useTypedDispatch()
-
-    const graph_type = useTypedSelector(selectGraphType)
-
-    const scientific_terms = useTypedSelector(selectScientificTerms)
-
-    const level = useTypedSelector(selectLevel)
-
-    const category_cutting = useTypedSelector(selectCategoriesCutting)
-
-    const terming_cutting = useTypedSelector(selectTermingCutting)
-
-    const time_range = useTypedSelector(selectTimeRange)
-
-    const thesaurus_path = useTypedSelector(selectThesaurusPath)
-
-    const thesaurus_available_values = useTypedSelector(selectThesaurusAvailableValues)
-
-    const {data: authors, error: authorsError} = authorsResponse
-
-    const {data: laboratories, error: laboratoriesError} = laboratoriesResponse
-
-    if (!authors) {
-        return <div>{"Some error occurred..."}</div>
-    }
+    // Состояние для переключения между типами сущностей
+    const [entityType, setEntityType] = useState<EntityType>('profiles');
     
+    const [openMenu, setOpenMenu] = useState(false);
+
+    const dispatch = useTypedDispatch();
+
+    const graph_type = useTypedSelector(selectGraphType);
+    const scientific_terms = useTypedSelector(selectScientificTerms);
+    const level = useTypedSelector(selectLevel);
+    const category_cutting = useTypedSelector(selectCategoriesCutting);
+    const terming_cutting = useTypedSelector(selectTermingCutting);
+    const time_range = useTypedSelector(selectTimeRange);
+    const thesaurus_path = useTypedSelector(selectThesaurusPath);
+    const thesaurus_available_values = useTypedSelector(selectThesaurusAvailableValues);
+
+    // Получаем данные в зависимости от выбранного типа сущности
+    let currentData;
+    switch (entityType) {
+        case 'profiles':
+            currentData = profilesResponse;
+            break;
+        case 'journals':
+            currentData = journalsResponse;
+            break;
+        case 'conferences':
+            currentData = conferencesResponse;
+            break;
+        default:
+            currentData = profilesResponse;
+    }
+
+    const {data: entities, error: entitiesError} = currentData;
+    const {data: laboratories, error: laboratoriesError} = laboratoriesResponse;
+
+    if (!entities) {
+        return <div>{"Произошла ошибка при загрузке данных..."}</div>
+    }
 
     if (!laboratories) {
-        return <div>{"Some error occurred..."}</div>
+        return <div>{"Произошла ошибка при загрузке данных организаций..."}</div>
     }
+
+    // Получаем заголовок кнопки в зависимости от типа сущности
+    const getButtonTitle = () => {
+        switch (entityType) {
+            case 'profiles':
+                return "Выбор авторов";
+            case 'journals':
+                return "Выбор журналов";
+            case 'conferences':
+                return "Выбор конференций";
+            default:
+                return "Выбор";
+        }
+    };
+
+    // Получаем заголовок страницы в зависимости от типа сущности
+    const getPageTitle = () => {
+        switch (entityType) {
+            case 'profiles':
+                return "Профили ученых и организаций";
+            case 'journals':
+                return "Профили журналов";
+            case 'conferences':
+                return "Профили конференций";
+            default:
+                return "Профили";
+        }
+    };
+
+    // Функция для отображения соответствующего графика в зависимости от типа сущности
+    const renderPlot = () => {
+        switch (entityType) {
+            case 'profiles':
+                return <PostsArticlePlotWithCard />;
+            case 'journals':
+                return <PostsArticlePlotWithCardJournals />;
+            case 'conferences':
+                return <PostsArticlePlotWithCardConferences />;
+            default:
+                return <PostsArticlePlotWithCard />;
+        }
+    };
+
+    // Обработчик изменения типа сущности
+    const handleEntityTypeChange = (event: React.SyntheticEvent, newValue: EntityType) => {
+        setEntityType(newValue);
+        // Очищаем выбранные значения при переключении вкладок
+        dispatch(setAuthors([]));
+        dispatch(setWorks([]));
+        dispatch(setLaboratories([]));
+    };
 
     return ( 
         <>
             <Head>
-                <title>Профили ученых и организаций</title>
+                <title>{getPageTitle()}</title>
             </Head>
             <Stack sx={{height: "100%"}} mt={2} spacing={3}>
+                {/* Табы для переключения между типами сущностей */}
+                <Tabs 
+                    value={entityType} 
+                    onChange={handleEntityTypeChange} 
+                    centered
+                    sx={{ 
+                        borderBottom: 1, 
+                        borderColor: 'divider',
+                        mb: 2
+                    }}
+                >
+                    <Tab label="Ученые" value="profiles" sx={{ fontSize: '1.5rem' }} />
+                    <Tab label="Журналы" value="journals" sx={{ fontSize: '1.5rem' }} />
+                    <Tab label="Конференции" value="conferences" sx={{ fontSize: '1.5rem' }} />
+                </Tabs>
 
                 <Stack sx={{width: "70%", alignSelf: "center"}} spacing={3}>
                     <Stack direction={"row"} spacing={4} sx={{justifyContent: "center"}}>
                         <StyledContainedButton variant={"text"}
-
-                                            onClick={() => {
-                                                setOpenMenu(true)
-                                            }}>
-                            {"Выбор авторов"}
+                            onClick={() => {
+                                setOpenMenu(true)
+                            }}>
+                            {getButtonTitle()}
                         </StyledContainedButton>
 
-
-                        <AuthorsLaboratoriesMenu setOpenMenu={setOpenMenu} openMenu={openMenu} authors={authors}
-                                                laboratories={laboratories}/>
-
+                        <AuthorsLaboratoriesMenu 
+                            setOpenMenu={setOpenMenu} 
+                            openMenu={openMenu} 
+                            authors={entities}
+                            laboratories={laboratories}
+                            entityType={entityType}
+                        />
 
                         <Select
                             value={graph_type}
@@ -108,7 +196,6 @@ export default function Profiles({
                                 dispatch(setGraphType(Number(event.target.value)))
                             }}
                             renderValue={(value) => {
-
                                 return (
                                     <SelectTooltip titleText={graphTypeTooltip(value)}>{graphTypeLabel(value)}
                                     </SelectTooltip>);
@@ -173,8 +260,8 @@ export default function Profiles({
                     }} marks={true}/>
                 </Stack>
 
-                <PostsArticlePlotWithCard/>
-
+                {/* Отображаем соответствующий график в зависимости от выбранного типа сущности */}
+                {renderPlot()}
 
             </Stack>
         </>
@@ -183,18 +270,20 @@ export default function Profiles({
 
 export const getServerSideProps = wrapper.getServerSideProps(
     (store) => async () => {
-
-        const authorsResponse = await store.dispatch(getAuthors.initiate());
-
-        
-        const laboratoriesResponse = await store.dispatch(getOrganization.initiate())
+        // Загружаем данные для всех типов сущностей
+        const profilesResponse = await store.dispatch(getAuthors.initiate());
+        const journalsResponse = await store.dispatch(getJournals.initiate());
+        const conferencesResponse = await store.dispatch(getConferences.initiate());
+        const laboratoriesResponse = await store.dispatch(getOrganization.initiate());
 
         await Promise.all(store.dispatch(apiV2GetRunningQueriesThunk()));
         await Promise.all(store.dispatch(apiV1GetRunningQueriesThunk()));
 
         return {
             props: {
-                authorsResponse,
+                profilesResponse,
+                journalsResponse,
+                conferencesResponse,
                 laboratoriesResponse
             },
         };

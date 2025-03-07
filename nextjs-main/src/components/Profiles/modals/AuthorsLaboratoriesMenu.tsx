@@ -25,40 +25,41 @@ const AuthorsLaboratoriesMenu = ({
     setOpenMenu,
     authors,
     laboratories,
+    entityType
   }: {
     openMenu: boolean;
     setOpenMenu: React.Dispatch<React.SetStateAction<boolean>>;
     authors: Author[];
     laboratories: Laboratory[];
+    entityType: 'profiles' | 'journals' | 'conferences';
   }) => {
     const dispatch = useTypedDispatch();
   
     const selected_authors = useTypedSelector(selectAuthors);
     const selected_laboratories = useTypedSelector(selectLaboratories);
     const selected_works = useTypedSelector(selectWorks);
-    const path = window.location.pathname; 
     const authorParams = {
       authors: selected_authors.map((item) => ({ author_id: item.id })),
-  };
-  const skipCondition = selected_authors.length === 0;
+    };
+    const skipCondition = selected_authors.length === 0;
 
-  const { data: authorsWorksData } = useGetAuthorsPostsQuery(authorParams, { 
-      skip: skipCondition || !path.includes("profiles") 
-  });
-  const { data: journalsWorksData } = useGetJournalsPostsQuery(authorParams, { 
-      skip: skipCondition || !path.includes("journals") 
-  });
-  const { data: conferencesWorksData } = useGetConferencesPostsQuery(authorParams, { 
-      skip: skipCondition || !path.includes("conferences") 
-  });
+    const { data: authorsWorksData } = useGetAuthorsPostsQuery(authorParams, { 
+        skip: skipCondition || entityType !== 'profiles' 
+    });
+    const { data: journalsWorksData } = useGetJournalsPostsQuery(authorParams, { 
+        skip: skipCondition || entityType !== 'journals' 
+    });
+    const { data: conferencesWorksData } = useGetConferencesPostsQuery(authorParams, { 
+        skip: skipCondition || entityType !== 'conferences' 
+    });
 
-  const worksData = path.includes("profiles") 
-      ? authorsWorksData 
-      : path.includes("journals") 
-      ? journalsWorksData 
-      : path.includes("conferences") 
-      ? conferencesWorksData 
-      : [];
+    const worksData = entityType === 'profiles'
+        ? authorsWorksData
+        : entityType === 'journals'
+        ? journalsWorksData
+        : entityType === 'conferences'
+        ? conferencesWorksData
+        : [];
   
     const all_works_stub = { id: "Все работы", name: "Все работы" };
 
@@ -70,25 +71,29 @@ const AuthorsLaboratoriesMenu = ({
 
 
     const getTitle = () => {
-      if (path.includes("profiles")) {
+      switch (entityType) {
+        case 'profiles':
           return "Выбор автора и публикаций";
-      } else if (path.includes("journals")) {
+        case 'journals':
           return "Выбор журнала и публикаций";
-      } else if (path.includes("conferences")) {
+        case 'conferences':
           return "Выбор конференций и публикаций";
+        default:
+          return "";
       }
-      return ""; 
     };
 
     const getPlaceholder = () => {
-      if (path.includes("profiles")) {
+      switch (entityType) {
+        case 'profiles':
           return "Выберите авторов";
-      } else if (path.includes("journals")) {
+        case 'journals':
           return "Выберите журналы";
-      } else if (path.includes("conferences")) {
+        case 'conferences':
           return "Выберите конференции";
+        default:
+          return "";
       }
-      return ""; 
     };
 
     return (
