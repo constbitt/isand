@@ -1,5 +1,5 @@
-import React, { FC, useEffect, useState } from "react";
-import { Box, Typography, Container, Stack, IconButton, MenuItem } from "@mui/material";
+import React, { FC, useEffect, useState, useMemo } from "react";
+import { Box, Typography, Container, Stack, IconButton, MenuItem, Dialog } from "@mui/material";
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Head from "next/head";
@@ -71,17 +71,26 @@ const AccountPageContent: FC = () => {
         router.push('/account/edit_page');
     };
 
+    const overviewTab = useMemo(() => (
+        <AuthorOverviewTab 
+            prndAuthor={author} 
+            matchingAuthorId={idAuthor} 
+            prndAuthorLoading={isLoading} 
+        />
+    ), [author, idAuthor, isLoading]);
+
     const tabs = [
-      { 
-        label: "Обзор", component: <AuthorOverviewTab prndAuthor={author} matchingAuthorId={idAuthor} prndAuthorLoading={isLoading} /> 
-      },
-      { 
-        label: "Публикации", 
-        component: <PublicationsTab publications={publications || []} isLoading={publicationsLoading} /> 
-      },
-      { label: "Организации", component: <OrganisationsTab organisations={allOrganisations || []} isLoading={isLoading} /> },
-      { label: "Журналы и конференции", component: <JournsConfsTab journals={authorJournals || []} conferences={authorConferences || []} isLoading={isLoading} /> },
-      ];
+        { 
+            label: "Обзор", 
+            component: overviewTab
+        },
+        { 
+            label: "Публикации", 
+            component: <PublicationsTab publications={publications || []} isLoading={publicationsLoading} /> 
+        },
+        { label: "Организации", component: <OrganisationsTab organisations={allOrganisations || []} isLoading={isLoading} /> },
+        { label: "Журналы и конференции", component: <JournsConfsTab journals={authorJournals || []} conferences={authorConferences || []} isLoading={isLoading} /> },
+    ];
   
 
   return (
@@ -163,37 +172,42 @@ const AccountPageContent: FC = () => {
                 )}
               </IconButton>
             </Stack>
-            {expanded && (
-              <Box
-                sx={{
-                  marginTop: 6,
-                  position: 'absolute',
-                  backgroundColor: 'white',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                  padding: 1,
-                  maxWidth: '150px',
-                  height: '100px',
-                  right: 0,
-                }}
-              >
-                  <Stack spacing={0}> 
-                    <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Уведомления</MenuItem> 
-                    <MenuItem 
-                        onClick={handleEditPage}
-                        sx={{ fontSize: '0.675rem', padding: '0px 4px' }}
-                    >
-                        Изменение страниц
-                    </MenuItem> 
-                    <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Настройки аккаунта</MenuItem>
-                    <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Меню администратора</MenuItem> 
-                    <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px', color: '#AA0000' }}>Выход</MenuItem> 
-                  </Stack>
-              </Box>
-            )}
           </Stack>
         )}
       </Container>
+      <Dialog
+        open={expanded}
+        onClose={toggleExpansion}
+        hideBackdrop
+        disablePortal
+        PaperProps={{
+          sx: {
+            position: 'absolute',
+            top: '80px',
+            right: '16px',
+            margin: 0,
+            maxWidth: '150px',
+            height: '100px',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            padding: 1,
+          }
+        }}
+      >
+        <Stack spacing={0}> 
+          <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Уведомления</MenuItem> 
+          <MenuItem 
+            onClick={handleEditPage}
+            sx={{ fontSize: '0.675rem', padding: '0px 4px' }}
+          >
+            Изменение страниц
+          </MenuItem> 
+          <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Настройки аккаунта</MenuItem>
+          <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px' }}>Меню администратора</MenuItem> 
+          <MenuItem sx={{ fontSize: '0.675rem', padding: '0px 4px', color: '#AA0000' }}>Выход</MenuItem> 
+        </Stack>
+      </Dialog>
       <Box sx={{ padding: 4, position: 'relative' }}> 
         <Container>
           <Stack spacing={2} sx={{ mt: "60px", justifyContent: "center", width: "100%" }}>
