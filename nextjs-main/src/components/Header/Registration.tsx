@@ -1,19 +1,24 @@
 import { useTypedDispatch } from "@/src/hooks/useTypedDispatch"
 import { useTypedSelector } from "@/src/hooks/useTypedSelector"
 import { useGetAccountApiAffiliationQuery } from "@/src/store/api/serverApiV4"
-import { selectAffiliation, selectConfirmError, selectExistEmailError, selectLenError, selectNoneEmail, selectNoneLastName, selectNoneName, selectNonePassword, selectRegConfirmPassword, selectRegPassword, setAffiliation, setConfirmError, setExistEmailError, setLastname, setLenError, setName, setNoneEmail, setNoneLastName, setNoneName, setNonePassword, setPatronymic, setRegConfirmPassword, setRegEmail, setRegPassword } from "@/src/store/slices/headerModalSlice"
+import { selectAffiliation, selectConfirmError, selectExistEmailError, selectLenError, selectNoneEmail, selectNoneLastName, selectNoneName, selectNonePassword, selectRegConfirmPassword, selectRegPassword, selectRegEmail, selectLastname, selectName, setAffiliation, setConfirmError, setExistEmailError, setLastname, setLenError, setName, setNoneEmail, setNoneLastName, setNoneName, setNonePassword, setPatronymic, setRegConfirmPassword, setRegEmail, setRegPassword } from "@/src/store/slices/headerModalSlice"
 import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, TextField, Typography } from "@mui/material"
 import PasswordTextField from "../TextField/PasswordTextField"
+import { useRouter } from 'next/router'
 
 const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): React.ReactElement => {
     const dispatch = useTypedDispatch()
+    const router = useRouter()
     const password = useTypedSelector(selectRegPassword)
     const confirm_password = useTypedSelector(selectRegConfirmPassword)
+    const email = useTypedSelector(selectRegEmail)
+    const lastname = useTypedSelector(selectLastname)
+    const name = useTypedSelector(selectName)
     const confirm_error = useTypedSelector(selectConfirmError)
     const none_password = useTypedSelector(selectNonePassword)
     const exist_email_error = useTypedSelector(selectExistEmailError)
     const len_error = useTypedSelector(selectLenError)
-    const none_email  = useTypedSelector(selectNoneEmail)
+    const none_email = useTypedSelector(selectNoneEmail)
     const none_lastname = useTypedSelector(selectNoneLastName)
     const none_name = useTypedSelector(selectNoneName)
     const affiliation = useTypedSelector(selectAffiliation)
@@ -53,6 +58,40 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
             dispatch(setConfirmError(false));
         }
     };
+
+    const handleKeyDown = () => {
+        let hasError = false
+        
+        if (!lastname) {
+            dispatch(setNoneLastName(true))
+            hasError = true
+        }
+        if (!name) {
+            dispatch(setNoneName(true))
+            hasError = true
+        }
+        if (!email) {
+            dispatch(setNoneEmail(true))
+            hasError = true
+        }
+        if (!password) {
+            dispatch(setNonePassword(true))
+            hasError = true
+        }
+        if (password && password.length < 8) {
+            dispatch(setLenError(true))
+            hasError = true
+        }
+        if (password !== confirm_password) {
+            dispatch(setConfirmError(true))
+            hasError = true
+        }
+        
+        if (!hasError && email === 'admin@ipu.ru' && password === '12345678') {
+            router.push('/account')
+            onKeyDown()
+        }
+    }
 
     const textFieldsData: {label: string, onChange: (event: React.ChangeEvent<HTMLInputElement>) => void, error: boolean, helperText: string}[] = [
         { 
@@ -130,8 +169,7 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
                     onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                         if (e.key === 'Enter') {
                             e.preventDefault()
-                            console.log('sex')
-                            onKeyDown()
+                            handleKeyDown()
                         }
                     }} 
                 />
@@ -140,7 +178,7 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
                 color={'rgba(128, 128, 153, 1)'} 
                 sx={{alignSelf: 'flex-start'}}
             >
-                Нажимая “Зарегистрироваться”, я соглашаюсь с
+                Нажимая "Зарегистрироваться", я соглашаюсь с
                 <span style={{color: 'rgba(27, 69, 150, 1)', cursor: 'pointer'}}> условиями использования системы ИСАНД</span>
             </Typography>
         </Stack>
