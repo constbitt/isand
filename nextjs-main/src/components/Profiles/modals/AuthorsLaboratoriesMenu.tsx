@@ -9,7 +9,9 @@ import {
     selectWorks,
     setAuthors,
     setLaboratories,
-    setWorks
+    setWorks,
+    setTimeRange,
+    setInitialTimeRange
 } from "@/src/store/slices/profilesSlice";
 import CloseIcon from '@mui/icons-material/Close';
 //import StyledAutocomplete from "@/src/components/Fields/StyledAutocompleteField";
@@ -17,6 +19,7 @@ import StyledSelect from "@/src/components/Fields/StyledSelect";
 import {Author, AuthorsPostsPreparedResponseItem, AuthorsPostsRequest} from "@/src/store/types/authorTypes";
 import {Laboratory} from "@/src/store/types/laboratoryTypes";
 import {useGetAuthorsPostsQuery, useGetJournalsPostsQuery, useGetConferencesPostsQuery} from "@/src/store/api/serverApi";
+import {useGetPublInfoQuery} from "@/src/store/api/serverApiV2_5";
 import {Work} from "@/src/store/types/workTypes";
 
 
@@ -60,7 +63,18 @@ const AuthorsLaboratoriesMenu = ({
         : entityType === 'conferences'
         ? conferencesWorksData
         : [];
+
+    const { data: publicationInfoStart} = useGetPublInfoQuery(worksData?.[0]?.id!, {
+        skip: !worksData?.[0]?.id
+    });
+    const { data: publicationInfoEnd} = useGetPublInfoQuery(worksData?.[worksData?.length - 1]?.id!, {
+      skip: !worksData?.[worksData?.length - 1]?.id
+    });
+
+    const min = publicationInfoStart?.[0]?.year;
+    const max = publicationInfoEnd?.[0]?.year;
   
+
     const all_works_stub = { id: "Все работы", name: "Все работы" };
 
     useEffect(() => {
@@ -69,6 +83,12 @@ const AuthorsLaboratoriesMenu = ({
       }
     }, [selected_authors, worksData]);
 
+    useEffect(() => {
+      if (min && max) {
+        dispatch(setTimeRange([min, max]));
+        dispatch(setInitialTimeRange({ min, max }));
+      }
+    }, [min, max]);
 
     const getTitle = () => {
       switch (entityType) {
@@ -102,6 +122,11 @@ const AuthorsLaboratoriesMenu = ({
         open={openMenu}
         onClose={() => {
           setOpenMenu(false);
+        }}
+        keepMounted={false}
+        ModalProps={{
+          keepMounted: false,
+          disableScrollLock: true
         }}
       >
         <Box sx={{ width: 350 }} role="presentation" onClick={() => {}}>

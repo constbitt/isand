@@ -14,6 +14,7 @@ import {
     selectThesaurusAvailableValues,
     selectThesaurusPath,
     selectTimeRange,
+    selectTimeRangeBounds,
     setCategoryCutting,
     setGraphType,
     setLevel,
@@ -70,6 +71,7 @@ export default function UnifiedProfiles({
     const category_cutting = useTypedSelector(selectCategoriesCutting);
     const terming_cutting = useTypedSelector(selectTermingCutting);
     const time_range = useTypedSelector(selectTimeRange);
+    const time_range_bounds = useTypedSelector(selectTimeRangeBounds);
     const thesaurus_path = useTypedSelector(selectThesaurusPath);
     const thesaurus_available_values = useTypedSelector(selectThesaurusAvailableValues);
 
@@ -255,7 +257,10 @@ export default function UnifiedProfiles({
                         }
                     </Stack>
 
-                    <Range value={time_range} min={1920} max={2023} onChange={(_, v) => {
+                    <Range value={time_range} 
+                           min={time_range_bounds.min} 
+                           max={time_range_bounds.max} 
+                           onChange={(_, v) => {
                         dispatch(setTimeRange(v))
                     }} marks={true}/>
                 </Stack>
