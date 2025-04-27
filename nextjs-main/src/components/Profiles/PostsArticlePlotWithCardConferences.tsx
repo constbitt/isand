@@ -79,7 +79,7 @@ const PostsArticlePlotWithCard = () => {
                 selected_type: "labs",
                 years: time_range
             } as PostsForGraphRequest;
-
+            
 
             const authors_resp = getPosts(req_authors);
             const labs_resp = getPosts(req_labs);

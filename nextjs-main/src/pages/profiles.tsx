@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import {getAuthors, getJournals, getConferences, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
+import {getAuthors, getJournals, getConferences, getCities, getOrganizations, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
 import {wrapper} from "@/src/store/store";
 import {getOrganization, getRunningQueriesThunk as apiV2GetRunningQueriesThunk} from "@/src/store/api/serverApiV2";
 import React, {useState} from "react";
@@ -39,23 +39,29 @@ import SelectTooltip from "@/src/components/Tooltips/SelectTooltip";
 import PostsArticlePlotWithCard from "@/src/components/Profiles/PostsArticlePlotWithCard";
 import PostsArticlePlotWithCardJournals from "@/src/components/Profiles/PostsArticlePlotWithCardJournals";
 import PostsArticlePlotWithCardConferences from "@/src/components/Profiles/PostsArticlePlotWithCardConferences";
+import PostsArticlePlotWithCardOrganizations from "@/src/components/Profiles/PostsArticlePlotWithCardOrganizations";
+import PostsArticlePlotWithCardCities from "@/src/components/Profiles/PostsArticlePlotWithCardCities";
 import StyledCheckbox from "@/src/components/Fields/StyledCheckbox";
 import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
 import Head from "next/head";
 
 // Тип для идентификации типа сущности
-type EntityType = 'profiles' | 'journals' | 'conferences';
+type EntityType = 'profiles' | 'journals' | 'conferences' | 'organizations' | 'cities';
 
 export default function UnifiedProfiles({
                                      profilesResponse,
                                      journalsResponse,
                                      conferencesResponse,
-                                     laboratoriesResponse
+                                     laboratoriesResponse,
+                                     organizationsResponse,
+                                     citiesResponse
                                  }: {
     profilesResponse: ApiResponse<Author[]>,
     journalsResponse: ApiResponse<Author[]>,
     conferencesResponse: ApiResponse<Author[]>,
-    laboratoriesResponse: ApiResponse<Laboratory[]>
+    laboratoriesResponse: ApiResponse<Laboratory[]>,
+    organizationsResponse: ApiResponse<Author[]>,
+    citiesResponse: ApiResponse<Author[]>
 }) {
 
     // Состояние для переключения между типами сущностей
@@ -87,6 +93,12 @@ export default function UnifiedProfiles({
         case 'conferences':
             currentData = conferencesResponse;
             break;
+        case 'organizations':
+            currentData = organizationsResponse;
+            break;
+        case 'cities':
+            currentData = citiesResponse;
+            break;
         default:
             currentData = profilesResponse;
     }
@@ -111,6 +123,10 @@ export default function UnifiedProfiles({
                 return "Выбор журналов";
             case 'conferences':
                 return "Выбор конференций";
+            case 'organizations':
+                return "Выбор организаций";
+            case 'cities':
+                return "Выбор городов";
             default:
                 return "Выбор";
         }
@@ -125,6 +141,10 @@ export default function UnifiedProfiles({
                 return "Профили журналов";
             case 'conferences':
                 return "Профили конференций";
+            case 'organizations':
+                return "Профили организаций";
+            case 'cities':
+                return "Профили городов";
             default:
                 return "Профили";
         }
@@ -139,6 +159,10 @@ export default function UnifiedProfiles({
                 return <PostsArticlePlotWithCardJournals />;
             case 'conferences':
                 return <PostsArticlePlotWithCardConferences />;
+            case 'organizations':
+                return <PostsArticlePlotWithCardOrganizations />;
+            case 'cities':
+                return <PostsArticlePlotWithCardCities />;
             default:
                 return <PostsArticlePlotWithCard />;
         }
@@ -173,6 +197,8 @@ export default function UnifiedProfiles({
                     <Tab label="Ученые" value="profiles" sx={{ fontSize: '1.5rem' }} />
                     <Tab label="Журналы" value="journals" sx={{ fontSize: '1.5rem' }} />
                     <Tab label="Конференции" value="conferences" sx={{ fontSize: '1.5rem' }} />
+                    <Tab label="Организации" value="organizations" sx={{ fontSize: '1.5rem' }} />
+                    <Tab label="Города" value="cities" sx={{ fontSize: '1.5rem' }} />
                 </Tabs>
 
                 <Stack sx={{width: "70%", alignSelf: "center"}} spacing={3}>
@@ -280,6 +306,8 @@ export const getServerSideProps = wrapper.getServerSideProps(
         const journalsResponse = await store.dispatch(getJournals.initiate());
         const conferencesResponse = await store.dispatch(getConferences.initiate());
         const laboratoriesResponse = await store.dispatch(getOrganization.initiate());
+        const organizationsResponse = await store.dispatch(getOrganizations.initiate());
+        const citiesResponse = await store.dispatch(getCities.initiate());
 
         await Promise.all(store.dispatch(apiV2GetRunningQueriesThunk()));
         await Promise.all(store.dispatch(apiV1GetRunningQueriesThunk()));
@@ -289,7 +317,9 @@ export const getServerSideProps = wrapper.getServerSideProps(
                 profilesResponse,
                 journalsResponse,
                 conferencesResponse,
-                laboratoriesResponse
+                laboratoriesResponse,
+                organizationsResponse,
+                citiesResponse
             },
         };
     }

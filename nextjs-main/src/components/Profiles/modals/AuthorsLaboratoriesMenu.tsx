@@ -18,7 +18,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import StyledSelect from "@/src/components/Fields/StyledSelect";
 import {Author, AuthorsPostsPreparedResponseItem, AuthorsPostsRequest} from "@/src/store/types/authorTypes";
 import {Laboratory} from "@/src/store/types/laboratoryTypes";
-import {useGetAuthorsPostsQuery, useGetJournalsPostsQuery, useGetConferencesPostsQuery} from "@/src/store/api/serverApi";
+import {useGetAuthorsPostsQuery, useGetJournalsPostsQuery, useGetConferencesPostsQuery, useGetCitiesPostsQuery, useGetOrganizationsPostsQuery} from "@/src/store/api/serverApi";
 import {useGetPublInfoQuery} from "@/src/store/api/serverApiV2_5";
 import {Work} from "@/src/store/types/workTypes";
 
@@ -34,7 +34,7 @@ const AuthorsLaboratoriesMenu = ({
     setOpenMenu: React.Dispatch<React.SetStateAction<boolean>>;
     authors: Author[];
     laboratories: Laboratory[];
-    entityType: 'profiles' | 'journals' | 'conferences';
+    entityType: 'profiles' | 'journals' | 'conferences' | 'organizations' | 'cities';
   }) => {
     const dispatch = useTypedDispatch();
   
@@ -44,6 +44,7 @@ const AuthorsLaboratoriesMenu = ({
     const authorParams = {
       authors: selected_authors.map((item) => ({ author_id: item.id })),
     };
+    
     const skipCondition = selected_authors.length === 0;
 
     const { data: authorsWorksData } = useGetAuthorsPostsQuery(authorParams, { 
@@ -56,12 +57,24 @@ const AuthorsLaboratoriesMenu = ({
         skip: skipCondition || entityType !== 'conferences' 
     });
 
+    const { data: organizationsWorksData } = useGetOrganizationsPostsQuery(authorParams, { 
+      skip: skipCondition || entityType !== 'organizations' 
+  });
+
+  const { data: citiesWorksData } = useGetCitiesPostsQuery(authorParams, { 
+    skip: skipCondition || entityType !== 'cities' 
+  });
+
     const worksData = entityType === 'profiles'
         ? authorsWorksData
         : entityType === 'journals'
         ? journalsWorksData
         : entityType === 'conferences'
         ? conferencesWorksData
+        : entityType === 'organizations'
+        ? organizationsWorksData
+        : entityType === 'cities'
+        ? citiesWorksData
         : [];
 
     const { data: publicationInfoStart} = useGetPublInfoQuery(worksData?.[0]?.id!, {
@@ -98,6 +111,10 @@ const AuthorsLaboratoriesMenu = ({
           return "Выбор журнала и публикаций";
         case 'conferences':
           return "Выбор конференций и публикаций";
+        case 'cities':
+          return "Выбор городов и публикаций";
+        case 'organizations':
+          return "Выбор организаций и публикаций";
         default:
           return "";
       }
@@ -111,6 +128,10 @@ const AuthorsLaboratoriesMenu = ({
           return "Выберите журналы";
         case 'conferences':
           return "Выберите конференции";
+        case 'cities':
+          return "Выберите города";
+        case 'organizations':
+          return "Выберите организации";
         default:
           return "";
       }

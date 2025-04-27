@@ -13,7 +13,8 @@ const initialState: ProfilesState = {
     level: 1,
     terming_cutting: 0,
     category_cutting: 0,
-    time_range: [1920, 2023],
+    time_range: [1920, 2025],
+    time_range_bounds: { min: 1920, max: 2025 },
     scientific_terms: false,
     thesaurus_path: [],
     graph_type: 0,
@@ -26,6 +27,11 @@ export const profilesSlice = createSlice({
     reducers: {
         setLevel: (state, action: PayloadAction<number>) => {
             state.level = action.payload
+        },
+
+        setInitialTimeRange: (state, action: PayloadAction<{min: number, max: number}>) => {
+            state.time_range = [action.payload.min, action.payload.max];
+            state.time_range_bounds = action.payload;
         },
 
         setCategoryCutting: (state, action: PayloadAction<number>) => {
@@ -68,6 +74,7 @@ export const {
     setCategoryCutting,
     setTermingCutting,
     setTimeRange,
+    setInitialTimeRange,
     setScientificTerms,
     setThesaurusPath,
     setGraphType,
@@ -86,4 +93,5 @@ export const selectScientificTerms = (state: RootState) => state.profiles.scient
 export const selectThesaurusPath = (state: RootState) => state.profiles.thesaurus_path
 export const selectGraphType = (state: RootState) => state.profiles.graph_type
 export const selectThesaurusAvailableValues = (state: RootState) => state.profiles.thesaurus_available_values
+export const selectTimeRangeBounds = (state: RootState) => state.profiles.time_range_bounds;
 
