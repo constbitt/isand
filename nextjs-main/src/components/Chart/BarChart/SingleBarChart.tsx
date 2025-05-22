@@ -2,9 +2,10 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import React from "react";
 import BarCustomTooltip from "@/src/components/Chart/BarChart/BarCustomTooltip";
 
-const StyledSingleBarChart = ({ data, onClick }: {
+const StyledSingleBarChart = ({ data, onClick, tooltip = true }: {
     data: { name: string, value: number }[],
-    onClick: (_: any) => void
+    onClick: (_: any) => void,
+    tooltip?: boolean | null
 }) => {
     const barSize = 20;
     const minBarHeight = 40;
@@ -29,7 +30,7 @@ const StyledSingleBarChart = ({ data, onClick }: {
                 <CartesianGrid stroke="#f5f5f5" />
                 <XAxis type="number" />
                 <YAxis dataKey="name" type="category" width={yAxisWidth} />
-                <Tooltip content={BarCustomTooltip as any} />
+                {tooltip !== null && <Tooltip content={BarCustomTooltip as any} />}
                 <Bar dataKey="value" barSize={barSize} fill="rgb(99, 110, 250)" />
             </BarChart>
         </ResponsiveContainer>
