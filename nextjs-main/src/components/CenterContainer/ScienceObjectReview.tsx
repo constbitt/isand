@@ -9,6 +9,7 @@ type ScienceObjectReviewProps = Omit<Author, 'avatar' |'fio' | 'affiliation'> & 
 
 const ScienceObjectReview: React.FC<ScienceObjectReviewProps> = ({description, geoposition, publications, citations, ids, idAuthor, objectType}): React.ReactElement => {
 
+    console.log("idAuthor: ", idAuthor);
     const tabs: {label: string, component: React.ReactNode}[] = [
         // { label: 'Метафакторы', component: <RadarComponent level={0} id={[idAuthor]} include_common_terms={1} object_type={'authors'} /> },
         { label: 'Факторы', component: <RadarComponent level={1} id={[idAuthor]} include_common_terms={1} object_type={objectType} /> },

@@ -14,9 +14,9 @@ import ErrorSnakeBar from "../../Snakebar/errorsnakebar";
 import Cookies from 'js-cookie';
 import StyledAvatar from "../../Avatar/StyledAvatar";
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { useGetAccountApiAuthTokenQuery } from "@/src/store/api/serverApiV6";
 import AuthenticationModal from "../../Modals/AuthenticationModal";
 import HelperModal from "../../Modals/HelperModal";
+import { usePathname } from 'next/navigation';
 
 
 
@@ -30,6 +30,7 @@ import HelperModal from "../../Modals/HelperModal";
 
 export default function Header(): React.ReactElement {
     const dispatch = useTypedDispatch()
+    const pathname = usePathname()
 
     const [openAuthentification, setOpenAuthentification] = useState<boolean>(false)
     const [openHelper, setOpenHelper] = useState<boolean>(false)
@@ -41,8 +42,8 @@ export default function Header(): React.ReactElement {
     const header_avatar_url = useTypedSelector(selectHeaderAvaterUrl)
     const authorization = useTypedSelector(selectAuthorization)
     
+    console.log("header_fio", header_fio);
 
-    useGetAccountApiAuthTokenQuery()
 
     const handleCloseAuthentification = () => {
         dispatch(setHeaderModalInitState())
@@ -60,7 +61,7 @@ export default function Header(): React.ReactElement {
     
     const options: {name: string, url: string, disabled: boolean}[] = [
         { name: 'Уведомления', url: '/', disabled: true },
-        { name: 'Изменение страниц', url: '/personality/setting', disabled: false },
+        { name: 'Изменение страниц', url: '/account/setting', disabled: true },
         { name: 'Настройки аккаунта', url: '/', disabled: true },
         { name: 'Меню администратора', url: '/', disabled: true },
     ];
@@ -78,22 +79,11 @@ export default function Header(): React.ReactElement {
                 <NextBreadcrumbs
                     getDefaultTextGenerator={getDefaultTextGenerator}
                 />
-                {!authorization ?
-                    <Stack direction={'row'} spacing={1} sx={{alignItems: 'center', height: '60px'}}>
-{/*
-<Image src={LoginIcon} className="cursor-pointer" onClick={() => setOpenAuthentification(true)} alt={""} />
-<Typography onClick={() => setOpenAuthentification(true)} className="cursor-pointer" variant="h5">Войти</Typography>
-*/}
-
-                        <IconButton color="primary" onClick={() => setOpenHelper(true)}>
-                            <HelpOutlineIcon />
-                        </IconButton>
-                    </Stack>
-                :
+                {authorization ? (
                     <Stack direction={'row'} spacing={1} sx={{alignItems: 'center', height: '60px'}}>
                         <Stack direction={'row'} spacing={1} ref={stackRef} sx={{alignItems: 'center', width: '100%',}}>
                             <StyledAvatar url={header_avatar_url} fio={header_fio} width={48} height={48} />
-                            <Link href='/personality'>
+                            <Link href='/account'>
                                 <Typography 
                                     onClick={undefined} 
                                     sx={{
@@ -152,7 +142,15 @@ export default function Header(): React.ReactElement {
                             <HelpOutlineIcon />
                         </IconButton>
                     </Stack>
-                }
+                ) : pathname === '/' ? (
+                    <Stack direction={'row'} spacing={1} sx={{alignItems: 'center', height: '60px'}}>
+                        <Image src={LoginIcon} className="cursor-pointer" onClick={() => setOpenAuthentification(true)} alt={""} />
+                        <Typography onClick={() => setOpenAuthentification(true)} className="cursor-pointer" variant="h5">Войти</Typography>
+                        <IconButton color="primary" onClick={() => setOpenHelper(true)}>
+                            <HelpOutlineIcon />
+                        </IconButton>
+                    </Stack>
+                ) : null}
             </Stack>
             <AuthenticationModal handleClose={handleCloseAuthentification} open={openAuthentification} />
             <HelperModal open={openHelper} handleClose={() => setOpenHelper(false)} />

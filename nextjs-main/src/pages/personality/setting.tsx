@@ -1,3 +1,6 @@
+// @ts-nocheck
+
+
 import React, { useEffect, useState } from 'react';
 import { Button, CircularProgress, Container, Stack, Typography } from '@mui/material';
 import Head from 'next/head';

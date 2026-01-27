@@ -1,7 +1,7 @@
 import { api_v5_server } from "@/src/configs/apiConfig";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { HYDRATE } from "next-redux-wrapper";
-import { AllAuthorsResponse, AllAviableSource, AuthorDeltasResponse, AuthorMinMaxYearResponse, ProduceAuthorConnectivityGraphRequest, ProduceAuthorConnectivityGraphResponse, ProduceProfileMapResponse, ProduceThesaurusGraphRequst, ProduceThesaurusGraphResponse, GetAuthorDeltasRequest} from "../types/graphsTypes";
+import { AllAuthorsResponse, AllCitiesResponse, AllOrganizationsResponse, AllJournalsResponse, AllConferencesResponse, AuthorDeltasResponse, AuthorMinMaxYearResponse, ProduceAuthorConnectivityGraphRequest, ProduceAuthorConnectivityGraphResponse, ProduceProfileMapResponse, ProduceThesaurusGraphRequst, ProduceThesaurusGraphResponse, GetAuthorDeltasRequest} from "../types/graphsTypes";
 import { Item, SubjectArea } from "../types/thesaurusTypes";
 
 export const serverApiV5 = createApi({
@@ -21,6 +21,26 @@ export const serverApiV5 = createApi({
                 url: `/get_all_available_authors`,
             }),
         }),
+        getAllAviableJournals: builder.query<AllJournalsResponse[], void>({
+            query: () => ({
+                url: `/get_all_available_journals`,
+            }),
+        }),
+        getAllAviableCities: builder.query<AllCitiesResponse[], void>({
+            query: () => ({
+                url: `/get_all_available_cities`,
+            }),
+        }),
+        getAllAviableOrganizations: builder.query<AllOrganizationsResponse[], void>({
+            query: () => ({
+                url: `/get_all_available_organizations`,
+            }),
+        }),
+        getAllAviableConferences: builder.query<AllConferencesResponse[], void>({
+            query: () => ({
+                url: `/get_all_available_conferences`,
+            }),
+        }),
         getConferenceAuthors: builder.query<string[], string>({
             query: (conf_name) => ({
                 url: `/get_conf_authors`,
@@ -31,6 +51,30 @@ export const serverApiV5 = createApi({
             query: (auth_prnd_id) => ({
                 url: `/get_author_min_max_year`,
                 params: {auth_prnd_id: auth_prnd_id}
+            }),
+        }),
+        getJournalMinMaxYear: builder.query<AuthorMinMaxYearResponse, number>({
+            query: (journal_id) => ({
+                url: `/get_journal_min_max_year`,
+                params: {journal_id: journal_id}
+            }),
+        }),
+        getConferenceMinMaxYear: builder.query<AuthorMinMaxYearResponse, number>({
+            query: (conf_id) => ({
+                url: `/get_conference_min_max_year`,
+                params: {conf_id: conf_id}
+            }),
+        }),
+        getCityMinMaxYear: builder.query<AuthorMinMaxYearResponse, number>({
+            query: (city_id) => ({
+                url: `/get_city_min_max_year`,
+                params: {city_id: city_id}
+            }),
+        }),
+        getOrganizationMinMaxYear: builder.query<AuthorMinMaxYearResponse, number>({
+            query: (org_id) => ({
+                url: `/get_organization_min_max_year`,
+                params: {org_id: org_id}
             }),
         }),
         getAuthorDeltas: builder.query<AuthorDeltasResponse[], GetAuthorDeltasRequest>({
@@ -58,11 +102,6 @@ export const serverApiV5 = createApi({
                 body: thesaurus_graph
             }),
         }),
-        getAllAviableConference: builder.query<AllAviableSource[], void>({
-            query: () => ({
-                url: `/get_all_available_conferences`,
-            }),
-        }),
         getAllSubjectAreas: builder.query<SubjectArea[], void>({
             query: () => ({
                 url: `/produce_classificator_roots`,
@@ -81,12 +120,19 @@ export const serverApiV5 = createApi({
 export const {
     useGetAuthorDeltasQuery,
     useGetAuthorMinMaxYearQuery,
+    useGetJournalMinMaxYearQuery,
+    useGetConferenceMinMaxYearQuery,
+    useGetOrganizationMinMaxYearQuery,
+    useGetCityMinMaxYearQuery,
     useGetConferenceAuthorsQuery,
     useGetProduceProfileMapQuery,
     usePostProduceThesaurusGraphMutation,
     useGetAllAviableAuthorsQuery,
+    useGetAllAviableCitiesQuery,
+    useGetAllAviableJournalsQuery,
+    useGetAllAviableOrganizationsQuery,
     usePostProduceAuthorConnectivityGraphMutation,
-    useGetAllAviableConferenceQuery,
+    useGetAllAviableConferencesQuery,
     useGetAllSubjectAreasQuery,
     usePostAllItemsMutation,
     util: {getRunningQueriesThunk}
@@ -95,12 +141,19 @@ export const {
 // Export hooks for usage in functional components
 export const { 
     getAllAviableAuthors,
+    getAllAviableCities,
+    getAllAviableJournals,
+    getAllAviableOrganizations,
     getAuthorDeltas,
     getAuthorMinMaxYear,
+    getJournalMinMaxYear,
+    getConferenceMinMaxYear,
+    getOrganizationMinMaxYear,
+    getCityMinMaxYear,
     getConferenceAuthors,
     getProduceProfileMap,
     postProduceThesaurusGraph,
-    getAllAviableConference,
+    getAllAviableConferences,
     postProduceAuthorConnectivityGraph,
     getAllSubjectAreas,
     postAllItems,

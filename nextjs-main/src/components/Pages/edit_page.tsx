@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, TextField, Button, Grid, Avatar, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 
 interface OrganizationFormData {
     fullName: string;
@@ -45,6 +46,7 @@ interface JournalFormData {
 }
 
 const EditPageContent: React.FC = () => {
+    const router = useRouter();
     const [selectedPage, setSelectedPage] = useState('person');
     const [personData, setPersonData] = useState<PersonFormData>({
         surname: 'Новиков',
@@ -66,24 +68,24 @@ const EditPageContent: React.FC = () => {
     });
 
     const [orgData, setOrgData] = useState<OrganizationFormData>({
-        fullName: 'Институт проблем управления им. В.А. Трапезникова РАН',
-        shortName: 'ИПУ РАН',
-        englishName: 'V.A. Trapeznikov Institute of Control Sciences of Russian Academy of Sciences',
+        fullName: 'Московский государственный технический университет им. Н. Э. Баумана',
+        shortName: 'МГТУ им. Н. Э. Баумана',
+        englishName: 'Bauman Moscow State Technical University',
         city: 'Москва',
         country: 'Россия',
-        website: 'www.ipu.ru',
-        rorId: 'ror.org/000000000',
+        website: 'http://www.bmstu.ru/',
+        rorId: 'https://ror.org/00pb8h375',
         isni: '0000 0000 0000 0000'
     });
 
     const [journalData, setJournalData] = useState<JournalFormData>({
-        fullName: 'Автоматика и телемеханика',
-        shortName: 'АиТ',
-        englishName: 'Automation and Remote Control',
-        issn: '0005-2310',
-        eissn: '1608-3032',
+        fullName: 'Проблемы управления',
+        shortName: 'ПУ',
+        englishName: 'Control Sciences',
+        issn: '2300-2611',
+        eissn: '1230-2384',
         publisher: 'ИПУ РАН',
-        website: 'http://www.mathnet.ru/at',
+        website: 'http://pu.mtas.ru/about/',
         wosId: '000000',
         scopusId: '000000'
     });
@@ -114,6 +116,20 @@ const EditPageContent: React.FC = () => {
         console.log(selectedPage === 'person' ? personData : selectedPage === 'organization' ? orgData : journalData);
     };
 
+    const handleButtonClick = () => {
+        switch (selectedPage) {
+            case 'person':
+                router.push('/account');
+                break;
+            case 'organization':
+                router.push('/account?type=organization');
+                break;
+            case 'journal':
+                router.push('/account?type=journal');
+                break;
+        }
+    };
+
     const labelStyle = {
         display: 'flex',
         alignItems: 'center',
@@ -130,8 +146,8 @@ const EditPageContent: React.FC = () => {
 
     const availablePages = [
         { id: 'person', name: 'Новиков Д.А.' },
-        { id: 'organization', name: 'Институт проблем управления им. В.А. Трапезникова РАН' },
-        { id: 'journal', name: 'Автоматика и телемеханика' }
+        { id: 'organization', name: 'Московский государственный технический университет им. Н. Э. Баумана' },
+        { id: 'journal', name: 'Проблемы управления' }
     ];
 
     const renderOrganizationForm = () => (
@@ -185,7 +201,7 @@ const EditPageContent: React.FC = () => {
                         <Grid item xs={12} sx={fieldStyle}>
                             <Typography sx={labelStyle}>Город</Typography>
                             <TextField
-                                sx={{ width: '40%' }}
+                                sx={{ width: '50%' }}
                                 variant="outlined"
                                 size="small"
                                 value={orgData.city}
@@ -195,7 +211,7 @@ const EditPageContent: React.FC = () => {
                         <Grid item xs={12} sx={fieldStyle}>
                             <Typography sx={labelStyle}>Страна</Typography>
                             <TextField
-                                sx={{ width: '40%' }}
+                                sx={{ width: '50%' }}
                                 variant="outlined"
                                 size="small"
                                 value={orgData.country}
@@ -205,7 +221,7 @@ const EditPageContent: React.FC = () => {
                         <Grid item xs={12} sx={fieldStyle}>
                             <Typography sx={labelStyle}>Сайт</Typography>
                             <TextField
-                                sx={{ width: '40%' }}
+                                sx={{ width: '50%' }}
                                 variant="outlined"
                                 size="small"
                                 value={orgData.website}
@@ -215,7 +231,7 @@ const EditPageContent: React.FC = () => {
                         <Grid item xs={12} sx={fieldStyle}>
                             <Typography sx={labelStyle}>ROR ID</Typography>
                             <TextField
-                                sx={{ width: '40%' }}
+                                sx={{ width: '50%' }}
                                 variant="outlined"
                                 size="small"
                                 value={orgData.rorId}
@@ -225,7 +241,7 @@ const EditPageContent: React.FC = () => {
                         <Grid item xs={12} sx={fieldStyle}>
                             <Typography sx={labelStyle}>ISNI</Typography>
                             <TextField
-                                sx={{ width: '40%' }}
+                                sx={{ width: '50%' }}
                                 variant="outlined"
                                 size="small"
                                 value={orgData.isni}
@@ -618,7 +634,12 @@ const EditPageContent: React.FC = () => {
                     </Grid>
 
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <Button variant="contained" component="label" size="small">
+                        <Button 
+                            variant="contained" 
+                            component="label" 
+                            size="small"
+                            onClick={handleButtonClick}
+                        >
                             Перейти к странице
                         </Button>
                     </Box>

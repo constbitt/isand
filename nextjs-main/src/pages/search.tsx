@@ -1,10 +1,12 @@
+// @ts-nocheck
+
 import React, { useState, KeyboardEvent, useEffect } from 'react';
 import Image from "next/image";
 import { useRouter, NextRouter } from 'next/router';
 import {
     Button, FormControl, FormLabel, RadioGroup,
     Radio, Accordion, AccordionSummary, AccordionDetails, 
-    FormControlLabel, Checkbox, Box, Stack, TextField, Container
+    FormControlLabel, Checkbox, Box, Stack, TextField, Container, Typography, Card
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {useTypedDispatch} from "@/src/hooks/useTypedDispatch";
@@ -24,6 +26,18 @@ import StyledCheckbox from '../components/Fields/StyledCheckbox';
 import Head from 'next/head';
 import { useGetPublicationsTypesQuery } from '../store/api/serverApiV3';
 import StyledRange from '@/src/components/Sliders/Range';
+import { getAuthors, getJournals, getRunningQueriesThunk as apiV1GetRunningQueriesThunk } from "@/src/store/api/serverApi";
+import { wrapper } from "@/src/store/store";
+import { getOrganization, getRunningQueriesThunk as apiV2GetRunningQueriesThunk } from "@/src/store/api/serverApiV2";
+import Select from "react-select";
+import { ApiResponse } from "@/src/store/types/apiTypes";
+import { Author } from "@/src/store/types/authorTypes";
+import { Laboratory } from "@/src/store/types/laboratoryTypes";
+import StyledAvatar from '@/src/components/Avatar/StyledAvatar';
+import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
+import { useGetPublIsandInfoQuery, useSearchPublicationsQuery, useGetPublCardInfoQuery, useGetPublByFileStoreIdQuery, useSearchPublByTitleQuery } from "@/src/store/api/serverApiV2_5";
+import { useInView } from "react-intersection-observer";
+import CircularProgress from "@mui/material/CircularProgress";
 
 interface CheckboxDropdownProps {
     options: string[]
@@ -140,215 +154,463 @@ const RadioGroupComponent: React.FC<IRadioGroupComponent> = ({
     );
 };
 
-const SortSearchComponent: React.FC = (): React.ReactElement => {
-    const labelsSortType: string[] = ['По дате', 'По названию', 'По релевантности'];
-    const valuesSortType: string[] = ['date', 'name', 'relevance'];
-    const valuesSortBy: string[] = ['desc', 'asc'];
-    const labelsSortBy: React.ReactElement[] = [
-        <Image key={1} src={Ratedown} alt="ratedown" />,
-        <Image key={2} src={Rateup} alt="rateup" />,
-    ];
-    const disableds_sort: boolean[] = [false, false, false]
 
-
+const AuthorCard = ({ author }: { author: Author }) => {
     return (
-        <Box>
-            <Accordion>
-                <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    aria-controls="sort-dropdown-content"
-                    id="sort-dropdown-header"
-                >
-                    Сортировка
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Stack spacing={2}>
-                        <RadioGroupComponent
-                            reducer={setSortType}
-                            labels={labelsSortType}
-                            radioGroupName="sortType"
-                            selector={selectSortType}
-                            values={valuesSortType}
-                            disableds={disableds_sort}
-                        />
-                        <RadioGroupComponent
-                            formLabel="Порядок"
-                            reducer={setSortBy}
-                            labels={labelsSortBy}
-                            radioGroupName="sortBy"
-                            selector={selectSortBy}
-                            values={valuesSortBy}
-                            disableds={[false, false]}
-                        />
-                    </Stack>
-                </AccordionDetails>
-            </Accordion>
-        </Box>
+        <Card key={author.id} sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', padding: '16px' }}>
+            <StyledAvatar 
+                fio={author.value} 
+                width={100}
+                height={100}
+                url={''}
+                editable={false}
+            />
+            <Typography variant="h6" sx={{ marginLeft: '16px', fontSize: '2.0rem' }}>{author.value}</Typography>
+        </Card>
     );
 };
 
-const DateSearchComponent: React.FC<{disabled: boolean}> = ({disabled}): React.ReactElement => {
-    const dispatch = useTypedDispatch()
-    const timeRange = useTypedSelector(selectTimeRange)
-    const [minMax, setMinMax] = useState<{min: number, max: number}>({min: 1997, max: new Date().getFullYear()})
-    const [open, setOpen] = useState(false)
-
-    const handleChange = () => {
-        if (!disabled) {
-            setOpen(!open);
-        }
+function AuthorsResultPage({
+    authorsResponse,
+    laboratoriesResponse
+}: {
+    authorsResponse: ApiResponse<Author[]>,
+    laboratoriesResponse: ApiResponse<Laboratory[]>
+}) {
+    const [selectedAuthors, setSelectedAuthors] = useState<Author[]>([]);
+    const [searchTerm, setSearchTerm] = useState<string>("");
+    const { data: authors, error: authorsError } = authorsResponse;
+    const handleHref = (creatureId: string) => {
+        return `/search/author?creature_id=${creatureId}`;
     };
-
-    useEffect(() => {
-        // (async () => {
-        //     try {
-        //         const response = await 
-        //         setMinMax(response)
-        //     } catch (e) {
-        //         console.error(e)
-        //     }
-        // })()
-    }, [])
-
-
-    return (
-        <Box>
-            <Accordion disabled={disabled} expanded={!disabled ? open : false} onChange={handleChange}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="sort-dropdown-content" id="sort-dropdown-header">
-                    Временной диапазон
-                </AccordionSummary>
-                <AccordionDetails sx={{pt: 0}}>
-                        <Stack direction={'row'} sx={{alignItems: 'center'}} spacing={2}>
-                            <input
-                                type="number"
-                                min={minMax.min}
-                                max={minMax.max}
-                                value={timeRange[0]}
-                                onChange={(e) => {
-                                    const newValue = parseInt(e.target.value)
-                                    dispatch(setTimeRange([newValue, timeRange[1]]))
-                                }}
-                                style={{
-                                    width: '75px',
-                                    padding: '4px 8px',
-                                    border: (timeRange[0] > minMax.max || timeRange[0] < minMax.min) ? '1px solid red' : '1px solid #ccc',
-                                    borderRadius: '4px',
-                                    outline: 'none',
-                                }}
-                            />
-                            <StyledRange min={minMax.min} max={minMax.max} width={'100px'} value={timeRange} marks={[]} onChange={
-                                (_, value) => dispatch(setTimeRange(value))
-                            } />
-                            <input
-                                type="number"
-                                min={minMax.min}
-                                max={minMax.max}
-                                value={timeRange[1]}
-                                onChange={(e) => {
-                                    const newValue = parseInt(e.target.value)
-                                    dispatch(setTimeRange([timeRange[0], newValue]))
-                                }}
-                                style={{
-                                    width: '75px',
-                                    padding: '4px 8px',
-                                    border: (timeRange[1] > minMax.max || timeRange[1] < minMax.min) ? '1px solid red' : '1px solid #ccc',
-                                    borderRadius: '4px',
-                                    outline: 'none',
-                                }}
-                            />
-                        </Stack>
-                </AccordionDetails>
-            </Accordion>
-        </Box>
+    if (!authors) {
+        return <div>{"Some error occurred..."}</div>;
+    }
+    const filteredAuthors = authors.filter(author =>
+        author.value.toLowerCase().includes(searchTerm.toLowerCase())
     );
-}
-
-const SearchPage: React.FC = (): React.ReactElement => {
-    const dispatch = useTypedDispatch()
-    const search_options: string[] = ['Публикации', 'Авторы', 'Города', 'Журналы', 'Конференции', 'Организации'];
-    const disableds_options: boolean[] = [false, false, false, false, false, false]
-    const request_search_options: string[] = ['publications', 'authors', 'geopositions', 'journals', 'conferences', 'organizations']
-
-    const router: NextRouter = useRouter();
-
-    const phrase = useTypedSelector(selectPhrase)
-    const search_field = useTypedSelector(selectSearchFields)
-    const searchRequest = useTypedSelector(selectSearchApiRequest)
-    
-    const {data: publicationTypes} = useGetPublicationsTypesQuery()
-
+    const customStyles = {
+        control: (base: any) => ({
+            ...base,
+            borderRadius: '7px',
+            padding: '4px',
+        }),
+        multiValue: (base: any) => ({
+            ...base,
+            backgroundColor: '#e4e4e4',
+            borderRadius: '4px',
+        }),
+        multiValueLabel: (base: any) => ({
+            ...base,
+            color: '#000',
+        }),
+    };
+    const handleSearch = () => {};
+    const getOptionLabel = (option: any) => option.name || option.label || option.value || "Unknown";
+    const getOptionValue = (option: any) => option.id || option.value;
     return (
         <>
             <Head>
-                <title>Полнотекстовый поиск</title>
+                <title>Текстовый поиск</title>
             </Head>
-            <Container maxWidth='lg' sx={{mt: '65px'}}>
-                <Stack spacing={4}>
-                    <Stack>
-                        <Stack width={'100%'} direction={'row'} spacing={2}>
-                            <TextField 
-                                sx={{ flexGrow: 1 }}
-                                value={phrase} 
-                                onChange={(event: React.ChangeEvent<HTMLInputElement>) => dispatch(setPhrase(event.target.value))} 
-                                label="Введите запрос" 
-                                variant="outlined"
-                                onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
-                                    if (event.key === 'Enter') router.push({
-                                        pathname: '/search/sResult',
-                                        query: {...searchRequest},
-                                    })
-                                }} />
-                            <Link href={{
-                                pathname: '/search/sResult',
-                                query: {...searchRequest},
-                            }}>
-                                <Button type="submit" variant="contained" 
-                                    style={{ backgroundColor: '#1B4596', height: '100%' }}
-                                >Найти</Button>
-                            </Link>
+            <Stack sx={{ height: "100%" }} mt={2} spacing={3}>
+                <Stack sx={{ width: "90%", alignSelf: "center" }} spacing={3}>
+                    <Stack direction={"row"} spacing={1} sx={{ justifyContent: "center" }}>
+                        <Box sx={{ width: "100%" }} role="presentation">
+                            <Stack sx={{ width: "100%"}} spacing={2.7}>
+                            <input
+                                    type="text"
+                                    placeholder="Введите ФИО автора"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            />
                         </Stack>
+        </Box>
+                        <StyledContainedButton 
+                            variant="contained"
+                            onClick={handleSearch} 
+                        >
+                            Найти
+                        </StyledContainedButton>
                     </Stack>
-                    <Stack direction={'row'} sx={{ mt: 1 }} spacing={4} alignItems={'flex-start'}>
-                        <Accordion>
-                            <AccordionSummary 
-                                expandIcon={<ExpandMoreIcon />} 
-                                aria-controls="sort-dropdown-content" 
-                                id="sort-dropdown-header"
-                            >
-                                Область поиска
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <RadioGroupComponent 
-                                    disableds={disableds_options} 
-                                    labels={search_options} 
-                                    radioGroupName='search-fields' 
-                                    reducer={setSearchFields} 
-                                    values={request_search_options} 
-                                    selector={selectSearchFields} 
-                                />
-                                </AccordionDetails>
-                        </Accordion>
-                        <CheckboxDropdown 
-                            options={publicationTypes?.types.map(
-                                publType => publType.name
-                            ) ?? []} 
-                            request_options={publicationTypes?.types.map(
-                                publType => publType.id
-                            ) ?? []} 
-                            disableds={publicationTypes?.types.map(
-                                _ => false
-                            ) ?? []} 
-                            name={'Тип публикации'} 
-                            reducer={setPType}
-                            disabled={search_field !== 'publications'}
-                        />
-                        <DateSearchComponent disabled={search_field !== 'publications'} />
-                        <SortSearchComponent />
+                    <Stack spacing={3}>
+                        {filteredAuthors.map((author) => (
+                            <Link key={author.id} href={handleHref(author.id)}>
+                                <AuthorCard author={author} />
+                            </Link>
+                        ))}
                     </Stack>
                 </Stack>
-            </Container>
+            </Stack>
         </>
     );
+}
+
+interface PublicationWithId extends Publication {
+    fileStoreId: number;
+}
+
+const PublicationsPage = () => {
+    const [currentId, setCurrentId] = useState(1);
+    const [allPublications, setAllPublications] = useState<PublicationWithId[]>([]);
+    const { ref, inView } = useInView();
+    const { data, error, isLoading  } = useGetPublByFileStoreIdQuery(currentId);
+    const [searchText, setSearchText] = useState('');
+    const [isSearching, setIsSearching] = useState(false); 
+    const { data: searchResults, error: searchError } = useSearchPublByTitleQuery(
+        {title: searchText },
+        { skip: !isSearching }
+    );
+    const [showResults, setShowResults] = useState(false);
+
+    const handleSearch = () => {
+        setIsSearching(true);
+        setShowResults(true);
+    };
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            handleSearch();
+        }
+    };
+    useEffect(() => {
+        setShowResults(false);
+    }, [searchText]);
+    useEffect(() => {
+        if (searchResults) {
+            setIsSearching(false);
+        }
+    }, [searchResults]);
+    useEffect(() => {
+        if (searchError) {
+            setIsSearching(false);
+        }
+    }, [searchError]);
+    useEffect(() => {
+        if (data && data.length > 0) {
+            const publicationsWithId = data.map(publication => ({
+                ...publication,
+                fileStoreId: currentId
+            }));
+            if (currentId < 100) {
+            setAllPublications(prev => [...prev, ...publicationsWithId]);
+            setCurrentId(prev => prev + 1);
+            //console.log(currentId);
+            }
+        }
+    }, [data]);
+    useEffect(() => {
+        if (inView && !isLoading && currentId < 100) {
+            setCurrentId(prev => prev + 1);
+        }
+        //console.log(currentId);
+    }, [inView, isLoading]);
+    const handleHref = (id: number) => {
+        return `/search/publication?creature_id=${id}`;
+    };
+    //if (searchError) return <Typography color="error">flkfkl</Typography>;
+    if (error) return <Typography color="error"></Typography>;
+    return (
+        <Stack sx={{ height: "100%" }} mt={2} spacing={3}>
+            <Stack sx={{ width: "90%", alignSelf: "center" }} spacing={3}>
+                <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <input
+                            type="text"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Введите название публикации"
+                            style={{
+                                width: '100%',
+                                padding: '8px',
+                                borderRadius: '4px',
+                                border: '1px solid #ccc',
+                            }}
+                        />
+                    </Box>
+                    <StyledContainedButton 
+                        variant="contained"
+                        onClick={handleSearch} 
+                    >
+                        Найти
+                    </StyledContainedButton>
+                </Stack>
+                {isSearching && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <CircularProgress />
+                    </Box>
+                )}
+                <Stack spacing={3}>
+                {searchText !== '' && !isSearching && showResults && (
+                    <>
+                    {searchResults && searchResults.length > 0 ? (
+                        searchResults.map((publication) => (
+                        <Link
+                            key={publication.publ_isand_id}
+                            href={`/publications/isand_publ?creature_id=${publication.publ_isand_id}`}
+                            passHref
+                        >
+                            <Card
+                            sx={{
+                                m: 0,
+                                boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)',
+                                alignItems: 'center',
+                                padding: '16px',
+                                cursor: 'pointer',
+                            }}
+                            >
+                            <Typography variant="h6">{publication.publ_name}</Typography>
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                color: '#1B4596',
+                                fontFamily: 'Nunito Sans, sans-serif',
+                                textAlign: 'left',
+                                width: '100%',
+                                fontWeight: 700,
+                                }}
+                            >
+                                Авторы: {publication.author_fios}
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                color: 'text.secondary',
+                                textAlign: 'left',
+                                width: '100%',
+                                }}
+                            >
+                                Год: {publication.year}
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                color: 'text.secondary',
+                                textAlign: 'left',
+                                width: '100%',
+                                }}
+                            >
+                                Источник: {publication.ext_source}
+                            </Typography>
+                            </Card>
+                        </Link>
+                        ))
+                    ) : (
+                        <Typography variant="body1" sx={{ textAlign: 'center', color: 'text.secondary', mt: 2 }}>
+                        Публикации не найдены
+                        </Typography>
+                    )}
+                    </>
+                )}
+                </Stack>
+
+                <Stack spacing={3}>
+                    {searchText === '' && (
+                        <>
+                            {allPublications.map((publication) => (
+                                <Link key={publication.publ_isand_id} href={handleHref(publication.fileStoreId)} passHref>
+                                    <Card sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', alignItems: 'center', padding: '16px', cursor: 'pointer' }}>
+                                        <Typography variant="h6">{publication.publ_name}</Typography>
+                                        <Typography 
+                                            variant='body1' 
+                                            sx={{ 
+                                                color: '#1B4596',
+                                                fontFamily: 'Nunito Sans, sans-serif',
+                                                textAlign: 'left',
+                                                width: '100%',
+                                                fontWeight: 700
+                                            }}
+                                        >
+                                            Авторы: {publication.author_fios}
+                                        </Typography>
+                                        <Typography 
+                                            variant='body2' 
+                                            sx={{
+                                                color: 'text.secondary',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            Год: {publication.year}
+                                        </Typography>
+                                        <Typography 
+                                            variant='body2' 
+                                            sx={{
+                                                color: 'text.secondary',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            Источник: {publication.ext_source}
+                                        </Typography>
+                                    </Card>
+                                </Link>
+                            ))}
+                            <Box ref={ref} sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                {isLoading && <CircularProgress />}
+                            </Box>
+                        </>
+                    )}
+                </Stack>
+            </Stack>
+        </Stack>
+    );
 };
+
+const JournalCard = ({ journal }: { journal: Author }) => {
+    return (
+        <Card key={journal.id} sx={{ m: 0, boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', padding: '16px' }}>
+            <StyledAvatar 
+                fio={journal.value} 
+                width={100}
+                height={100}
+                url={''}
+                editable={false}
+            />
+            <Typography variant="h6" sx={{ marginLeft: '16px', fontSize: '2.0rem' }}>{journal.value}</Typography>
+        </Card>
+    );
+};
+
+function JournalsPage({
+    journalsResponse
+}: {
+    journalsResponse: ApiResponse<Author[]>
+}) {
+    const [selectedJournals, setSelectedJournals] = useState<Author[]>([]);
+    const [searchTerm, setSearchTerm] = useState<string>("");
+    const { data: journals, error: journalsError } = journalsResponse;
+    const handleHref = (value: string) => {
+        return `/search/journal?name=${value}`;
+    };
+    if (!journals) {
+        return <div>{"Some error occurred..."}</div>;
+    }
+    const filteredJournals = journals.filter(journal =>
+        journal.value.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    console.log("searchTerm: ", searchTerm);
+    const customStyles = {
+        control: (base: any) => ({
+            ...base,
+            borderRadius: '7px',
+            padding: '4px',
+        }),
+        multiValue: (base: any) => ({
+            ...base,
+            backgroundColor: '#e4e4e4',
+            borderRadius: '4px',
+        }),
+        multiValueLabel: (base: any) => ({
+            ...base,
+            color: '#000',
+        }),
+    };
+    const handleSearch = () => {};
+    const getOptionLabel = (option: any) => option.name || option.label || option.value || "Unknown";
+    const getOptionValue = (option: any) => option.id || option.value;
+    return (
+        <>
+            <Head>
+                <title>Текстовый поиск</title>
+            </Head>
+            <Stack sx={{ height: "100%" }} mt={2} spacing={3}>
+                <Stack sx={{ width: "90%", alignSelf: "center" }} spacing={3}>
+                    <Stack direction={"row"} spacing={1} sx={{ justifyContent: "center" }}>
+                        <Box sx={{ width: "100%" }} role="presentation">
+                            <Stack sx={{ width: "100%"}} spacing={2.7}>
+                                <input
+                                        type="text"
+                                        placeholder="Введите название журнала"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                />
+                            </Stack>
+                        </Box>
+                        <StyledContainedButton 
+                            variant="contained"
+                            onClick={handleSearch} 
+                        >
+                            Найти
+                        </StyledContainedButton>
+                    </Stack>
+                    <Stack spacing={3}>
+                        {filteredJournals.map((journal) => (
+                            <Link key={journal.id} href={handleHref(journal.value)}>
+                                <JournalCard journal={journal} />
+                            </Link>
+                        ))}
+                    </Stack>
+                </Stack>
+            </Stack>
+        </>
+    );
+}
+
+
+const SearchPage: React.FC = (props: any): React.ReactElement => {
+const dispatch = useTypedDispatch()
+const search_options: string[] = ['Авторы', 'Публикации', 'Журналы'];
+const disableds_options: boolean[] = [false, false, false, false, false, false];
+const request_search_options: string[] = ['authors', 'publications', 'journals'];
+const search_field = useTypedSelector(selectSearchFields);
+
+
+return (
+    <Container>
+        <Stack direction={'row'} sx={{ mt: 1, ml: 7 }} spacing={4} alignItems={'flex-start'}>
+            <Accordion>
+                <AccordionSummary 
+                    expandIcon={<ExpandMoreIcon />} 
+                    aria-controls="sort-dropdown-content" 
+                    id="sort-dropdown-header"
+                >
+                    Область поиска
+                </AccordionSummary>
+                <AccordionDetails>
+                    <RadioGroupComponent 
+                        disableds={disableds_options} 
+                        labels={search_options} 
+                        radioGroupName='search-fields' 
+                        reducer={setSearchFields} 
+                        values={request_search_options} 
+                        selector={selectSearchFields} 
+                    />
+                </AccordionDetails>
+            </Accordion>
+        </Stack>
+
+        {search_field === 'authors' ? (
+            <AuthorsResultPage {...props} />
+        ) : search_field === 'publications' ? (
+            <PublicationsPage />
+        ) : search_field === 'journals' ? (
+            <JournalsPage {...props}/>
+        ) : null}
+    </Container>
+);
+
+};
+
+
+export const getServerSideProps = wrapper.getServerSideProps(
+    (store) => async () => {
+        const authorsResponse = await store.dispatch(getAuthors.initiate());
+        const laboratoriesResponse = await store.dispatch(getOrganization.initiate());
+        const journalsResponse = await store.dispatch(getJournals.initiate());
+        await Promise.all(store.dispatch(apiV2GetRunningQueriesThunk()));
+        await Promise.all(store.dispatch(apiV1GetRunningQueriesThunk()));
+        return {
+            props: {
+                authorsResponse,
+                journalsResponse,
+                laboratoriesResponse
+            },
+        };
+    }
+);
 
 export default SearchPage;

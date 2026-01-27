@@ -176,7 +176,6 @@ export default function UnifiedProfiles({
         dispatch(setWorks([]));
         dispatch(setLaboratories([]));
     };
-
     return ( 
         <>
             <Head>

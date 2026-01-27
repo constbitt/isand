@@ -1,6 +1,6 @@
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React from "react";
-import BarCustomTooltip from "@/src/components/Chart/BarChart/BarCustomTooltip";
+import { BarCustomTooltip, BarAuthorTooltip } from "@/src/components/Chart/BarChart/BarCustomTooltip";
 
 const StyledDoubleBarChart = ({ data, onClick, }: {
     data: {name: string, value1: number, value2: number}[],

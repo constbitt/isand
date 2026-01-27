@@ -17,8 +17,6 @@ import { useGetAuthorJournalsQuery, useGetAuthorConferencesQuery, useGetAuthorsA
 import AuthorTabContent from '@/src/components/CenterContainer/AuthorTabContent';
 import { parseStringToArray } from '@/src/tools/parseStringToArray';
 import { useInView } from "react-intersection-observer";
-import { Author } from '@/src/store/types/authorTypes';
-import { ApiResponse } from '@/src/store/types/apiTypes';
 import AuthorOverviewTab from "@/src/components/Tabs/AuthorOverviewTab";
 import PublicationsTab from "@/src/components/Tabs/PublicationsTab";
 import JournsConfsTab from "@/src/components/Tabs/JournsConfsTab";

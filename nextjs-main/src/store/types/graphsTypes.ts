@@ -60,6 +60,30 @@ export interface AllAuthorsResponse {
     publs_count: number
 }
 
+export interface AllJournalsResponse {
+    id: number
+    name_full: string
+    publs_count: number
+}
+
+export interface AllConferencesResponse {
+    id: number
+    name_full: string
+    publs_count: number
+}
+
+export interface AllCitiesResponse {
+    id: number
+    name: string
+    publs_count: number
+}
+
+export interface AllOrganizationsResponse {
+    id: number
+    name_base: string
+    publs_count: number
+}
+
 export interface AuthorMinMaxYearResponse {
     min: number
     max: number
@@ -79,6 +103,8 @@ export interface ProduceAuthorConnectivityGraphRequest {
     scale_cutoff_by_paper_num: number
     keep_data_in_graph: boolean
     node_cutoff_mode: 'percent' | 'overall' | 'per_paper'
+    entity_type?: 'author' | 'conference' | 'journal' | 'city' | 'organization'
+    
 }
 
 export interface Node {
@@ -115,9 +141,12 @@ export interface ProduceProfileMapResponse {
     pos: number[]
 }//[]
 
+type EntityType = 'author' | 'conference' | 'journal' | 'city' | 'organization'
+
 export interface GetAuthorDeltasRequest {
-    auth_prnd_id: number
-    freq_cutoff: number
+  auth_prnd_id: number
+  freq_cutoff: number
+  entity_type?: EntityType
 }
 
 export interface ProduceThesaurusGraphRequst {

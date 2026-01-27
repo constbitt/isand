@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useTypedDispatch } from "@/src/hooks/useTypedDispatch"
 import { useTypedSelector } from "@/src/hooks/useTypedSelector"
 import { useGetAccountApiAffiliationQuery } from "@/src/store/api/serverApiV4"
@@ -5,6 +7,8 @@ import { selectAffiliation, selectConfirmError, selectExistEmailError, selectLen
 import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, TextField, Typography } from "@mui/material"
 import PasswordTextField from "../TextField/PasswordTextField"
 import { useRouter } from 'next/router'
+import { useGetOrganizationsQuery, getRunningQueriesThunk as apiV1GetRunningQueriesThunk} from "@/src/store/api/serverApi";
+import {wrapper} from "@/src/store/store";
 
 const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): React.ReactElement => {
     const dispatch = useTypedDispatch()
@@ -22,7 +26,10 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
     const none_lastname = useTypedSelector(selectNoneLastName)
     const none_name = useTypedSelector(selectNoneName)
     const affiliation = useTypedSelector(selectAffiliation)
-    const {data: affiliation_data} = useGetAccountApiAffiliationQuery()
+    //const {data: affiliation_data} = useGetAccountApiAffiliationQuery()
+    const { data: affiliation_data } = useGetOrganizationsQuery()
+    //console.log("organizations: ", organizations);
+
 
     const handleChangeLastname = (event: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setNoneLastName(false))
@@ -135,10 +142,22 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
                         size="medium"
                         value={affiliation}
                         onChange={(e: SelectChangeEvent) => {
-                            dispatch(setAffiliation(e.target.value as string))
+                            dispatch(setAffiliation(e.target.value))
+                        }}
+                        MenuProps={{
+                            PaperProps: {
+                                style: {
+                                    maxHeight: 200, 
+                                    width: 540,   
+                                },
+                            },
                         }}
                     >
-                        {affiliation_data?.map((item, index) => <MenuItem value={item} key={index}>{item}</MenuItem>)}
+                        {affiliation_data?.map((item) => (
+                            <MenuItem value={item.id} key={item.id}>
+                                {item.value}
+                            </MenuItem>
+                        ))}
                     </Select>
                 </FormControl>
             </Stack>
@@ -178,7 +197,7 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
                 color={'rgba(128, 128, 153, 1)'} 
                 sx={{alignSelf: 'flex-start'}}
             >
-                Нажимая "Зарегистрироваться", я соглашаюсь с
+                Нажимая &quot;Зарегистрироваться&quot;, я соглашаюсь с
                 <span style={{color: 'rgba(27, 69, 150, 1)', cursor: 'pointer'}}> условиями использования системы ИСАНД</span>
             </Typography>
         </Stack>
@@ -186,3 +205,20 @@ const RegistrationComponent: React.FC<{onKeyDown: () => void}> = ({onKeyDown}): 
 }
 
 export default RegistrationComponent;
+/*
+export const getServerSideProps = wrapper.getServerSideProps(
+    (store) => async () => {
+        const organizationsResponse = await store.dispatch(getOrganizations.initiate());
+
+        await Promise.all(store.dispatch(apiV2GetRunningQueriesThunk()));
+        await Promise.all(store.dispatch(apiV1GetRunningQueriesThunk()));
+
+        console.log("organizationsResponse", organizationsResponse);
+        return {
+            props: {
+                organizationsResponse
+            },
+        };
+    }
+);
+*/

@@ -50,6 +50,7 @@ const PublicationsTab: React.FC<{ publications: any[], isLoading: boolean }> = (
                             return (
                                 <Card 
                                     key={post.publ_isand_id}
+                                    role="article"
                                     sx={{ 
                                         p: 3,
                                         m: '10px',

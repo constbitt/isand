@@ -1,31 +1,24 @@
 import { Stack, SxProps, Theme, Typography } from "@mui/material";
 import StyledAvatar from "../Avatar/StyledAvatar";
 import CheckIcon from '@mui/icons-material/Check';
-import { useGetConferenceInfoQuery } from "@/src/store/api/serverApiV2_5";
+
+interface ConferenceData {
+    conf_name: string;
+    avatar?: string;
+    representative?: boolean;
+}
 
 const ConferencePersonHatCard: React.FC<{ 
-    id: number;
+    conference: ConferenceData;
     sx?: SxProps<Theme>
-}> = ({ id, sx }): React.ReactElement => {
-    const { data, isLoading } = useGetConferenceInfoQuery(id, { skip: id < 0 });
-
-    if (isLoading) {
-        return <Typography>Загрузка информации о конференции...</Typography>;
-    }
-
-    if (!data || data.length === 0) {
-        return <Typography>Конференция не найдена.</Typography>;
-    }
-
-    const conference = data[0];
-
+}> = ({ conference, sx }): React.ReactElement => {
     return (
         <Stack direction={'row'} spacing={4} sx={{
             alignItems: 'center', 
             justifyContent: 'center',
             ...sx    
         }}>
-            <StyledAvatar fio={conference.conf_name} height={150} width={150} url={conference.avatar} />
+            <StyledAvatar fio={conference.conf_name} height={150} width={150} url={conference.avatar || ''} />
             <Stack spacing={4}>
                 <Typography 
                     color={'primary'} 

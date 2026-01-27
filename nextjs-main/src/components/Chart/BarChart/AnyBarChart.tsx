@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import React from "react";
-import BarCustomTooltip from "@/src/components/Chart/BarChart/BarCustomTooltip";
+import { BarCustomTooltip, BarAuthorTooltip } from "@/src/components/Chart/BarChart/BarCustomTooltip";
 
 const AnyBarChart = ({ data, onClick, formatter, colors, customTooltip = BarCustomTooltip }: {
     data: ({ name: string } & { [ids: string]: number })[],
@@ -47,8 +47,8 @@ const AnyBarChart = ({ data, onClick, formatter, colors, customTooltip = BarCust
                     left: 20,
                 }}
                 onClick={onClick}
-                barCategoryGap="20%"  // Added spacing between the bars
-                barGap={5}           // Additional spacing between bars
+                barCategoryGap="20%"
+                barGap={5}           
             >
                 <CartesianGrid stroke="#f5f5f5" />
                 <XAxis type="number" />

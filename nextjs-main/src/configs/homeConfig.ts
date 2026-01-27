@@ -6,41 +6,29 @@ import DistanceImg from "@/src/assets/images/home/distances.svg";
 import SearchImg from "@/src/assets/images/home/search.svg";
 import DeepsearchImg from "@/src/assets/images/home/deepSearch.svg";
 import GlossaryImg from "@/src/assets/images/home/glossary.svg";
+import EvolIcon from "@/src/assets/images/home/chart.svg";
 import {Card} from "@/src/store/types/homeTypes";
 
 export const cards: readonly Card[] = [
-    // {
-    //     name: 'Текстовый\n поиск',
-    //     text: 'На основании слова или фразы, введенной в строке поиска, позволяет найти релевантные публикации, учёных, журналы, конференции, организации и города',
-    //     link: '/search',
-    //     src: SearchImg,
-    // },
     {
         name: 'Тематический\n поиск',
         text: 'Поиск публикаций, ученых, журналов, конференций, организаций и городов по заданным параметрам',
         link: '/deepSearch',
         src: DeepsearchImg,
     },
+         {
+         name: 'Текстовый\n поиск',
+         text: 'Поиск ученых и публикаций на основании введенного слова или фразы',
+         link: '/search',
+         src: SearchImg,
+     },
     {
         name: 'Тематические\n профили',
-        text: 'Профили ученых, журналов, конференций',
+        text: 'Профили ученых, журналов, конференций, организаций, городов',
         link: '/profiles',
         src: ProfilesImg,
     },
-    /*
-    {
-        name: 'Профили\n журналов',
-        text: 'Тематические профили журналов',
-        link: '/journals',
-        src: ProfilesImg,
-    },
-    {
-        name: 'Профили\n конференций',
-        text: 'Тематические профили конференций',
-        link: '/conferences',
-        src: ProfilesImg,
-    },
-    */
+
     {
         name: 'Тематическое\n ранжирование',
         text: 'Ранжированный список ученых по заданным параметрам',
@@ -71,6 +59,28 @@ export const cards: readonly Card[] = [
         link: '/glossary',
         src: GlossaryImg,
     },
+
+        {
+        name: 'Эволюция и прогноз интересов',
+        text: 'Эволюция интересов автора с дальнейшим прогнозом развития',
+        link: '/insights',
+        src: EvolIcon,
+    },
+
+    {
+        name: 'Кластеризация',
+        text: '',
+        link: '/cluster',
+        src: GlossaryImg,
+    },
+
+        {
+        name: 'Интеллектуальный анализ статей',
+        text: '',
+        link: '/articleAnalysis',
+        src: GlossaryImg,
+    },
+
 
 ]
 

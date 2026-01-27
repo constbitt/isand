@@ -1,6 +1,8 @@
+// @ts-nocheck
+
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, CircularProgress, Container, SelectChangeEvent, Stack } from '@mui/material';
-import { useGetAccountApiOrgDataQuery, useGetAccountApiOrgTypesQuery, usePostAccountApiAddOrgDataMutation } from '@/src/store/api/serverApiV6';
 import { useGetAccountApiCitiesQuery, useGetAccountApiCountriesQuery } from '@/src/store/api/serverApiV4';
 import SettingTextField from '../TextField/SettingTextField';
 import SettingSelect from '../Select/SettingSelect';

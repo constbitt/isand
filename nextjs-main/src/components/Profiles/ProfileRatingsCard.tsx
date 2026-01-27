@@ -121,6 +121,8 @@ const ProfileRatingsCard = ({
 
     const isDataPresented = postForGraphData && articleRatingData;
 
+    //console.log(postForGraphData?.[0]?.terms);
+
     return (
         /*
         <Card

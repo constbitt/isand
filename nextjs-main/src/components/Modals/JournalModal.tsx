@@ -42,10 +42,13 @@ const JournalModal: FC<JournalModalProps> = ({ open, handleClose, id }): ReactEl
         }, 100);
     }, [open]);
 
+    console.log(id);
+
     return (
         <Modal
             open={open}
             onClose={handleClose}
+            role="dialog"
             sx={{
                 display: 'flex',
                 justifyContent: 'center',

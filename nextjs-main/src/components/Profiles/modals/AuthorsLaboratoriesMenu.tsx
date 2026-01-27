@@ -18,7 +18,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import StyledSelect from "@/src/components/Fields/StyledSelect";
 import {Author, AuthorsPostsPreparedResponseItem, AuthorsPostsRequest} from "@/src/store/types/authorTypes";
 import {Laboratory} from "@/src/store/types/laboratoryTypes";
-import {useGetAuthorsPostsQuery, useGetJournalsPostsQuery, useGetConferencesPostsQuery, useGetCitiesPostsQuery, useGetOrganizationsPostsQuery} from "@/src/store/api/serverApi";
+import {useGetAuthorsPostsQuery, useGetJournalsPostsQuery, useGetConferencesPostsQuery, useGetCitiesPostsQuery, useGetOrganizationsPostsQuery, useConvertIdQuery} from "@/src/store/api/serverApi";
 import {useGetPublInfoQuery} from "@/src/store/api/serverApiV2_5";
 import {Work} from "@/src/store/types/workTypes";
 
@@ -76,16 +76,58 @@ const AuthorsLaboratoriesMenu = ({
         : entityType === 'cities'
         ? citiesWorksData
         : [];
-
+/*
     const { data: publicationInfoStart} = useGetPublInfoQuery(worksData?.[0]?.id!, {
         skip: !worksData?.[0]?.id
     });
+
     const { data: publicationInfoEnd} = useGetPublInfoQuery(worksData?.[worksData?.length - 1]?.id!, {
       skip: !worksData?.[worksData?.length - 1]?.id
     });
+    */
 
-    const min = publicationInfoStart?.[0]?.year;
-    const max = publicationInfoEnd?.[0]?.year;
+    
+    //console.log(worksData?.[0] + "; " + worksData?.[worksData?.length - 1]);
+    const [years, setYears] = React.useState<number[]>([]);
+    useEffect(() => {
+      const fetchYears = async () => {
+        if (!worksData?.length) return;
+    
+        try {
+          const yearsFetched: number[] = [];
+    
+          for (const work of worksData) {
+
+            const convertResp = await fetch(
+              `https://kb-isand.ipu.ru/deliver/convert_id?id=${Number(work.id)}&source_id=account_db_b&target_id=prnd`
+            );
+            const convertData = await convertResp.json();
+    
+            const prnd_id = convertData?.prnd_id;
+            if (!prnd_id) continue;
+            const publResp = await fetch(
+              `https://kb-isand.ipu.ru/api/v2.5/publications/search?prnd=${prnd_id}`
+            );
+            const publData = await publResp.json();
+    
+            const year = publData?.[0]?.year;
+            if (year) yearsFetched.push(year);
+          }
+    
+          setYears(yearsFetched);
+        } catch (err) {
+          console.error("Ошибка при получении годов публикаций", err);
+        }
+      };
+    
+      fetchYears();
+    }, [worksData]);
+    
+    const minYear = years.length ? Math.min(...years) : undefined;
+    const maxYear = years.length ? Math.max(...years) : undefined;
+    
+
+    
   
 
     const all_works_stub = { id: "Все работы", name: "Все работы" };
@@ -97,11 +139,11 @@ const AuthorsLaboratoriesMenu = ({
     }, [selected_authors, worksData]);
 
     useEffect(() => {
-      if (min && max) {
-        dispatch(setTimeRange([min, max]));
-        dispatch(setInitialTimeRange({ min, max }));
+      if (minYear && maxYear) {
+        dispatch(setTimeRange([minYear, maxYear]));
+        dispatch(setInitialTimeRange({ min: minYear, max: maxYear }));
       }
-    }, [min, max]);
+    }, [minYear, maxYear]);
 
     const getTitle = () => {
       switch (entityType) {
@@ -136,6 +178,7 @@ const AuthorsLaboratoriesMenu = ({
           return "";
       }
     };
+
 
     return (
       <Drawer

@@ -27,12 +27,16 @@ interface AuthorModalProps {
 }
 
 const AuthorModal: FC<AuthorModalProps> = ({ open, handleClose, id }) => {
-    const { data: author, isLoading } = useGetAuthorByIsandIdQuery(id, { skip: id < 0 });
+    console.log("id: ", id);
+    const { data: author, isLoading, error: authorError } = useGetAuthorByIsandIdQuery(id, { skip: id < 0 });
+    console.log("author", author);
+    console.log("authorError", authorError);
+    
     const { data: publications, isLoading: publicationsLoading } = useGetPublicationsByAuthorIdQuery(id, { skip: id < 0 });
     const dispatch = useDispatch<AppDispatch>();
     const [matchingAuthorId, setMatchingAuthorId] = useState<number | null>(null);
 
-    const isand_ids = author ? parseStringToArray(author[0].org_isand_ids) : [];
+    const isand_ids = author && author[0] ? parseStringToArray(author[0].org_isand_ids) : [];
     const [currentId, setCurrentId] = useState(0);
     const [allOrganisations, setallOrganisations] = useState<any[]>([]);
     const { data, error } = useGetOrgInfoQuery(isand_ids[currentId]);
@@ -41,7 +45,7 @@ const AuthorModal: FC<AuthorModalProps> = ({ open, handleClose, id }) => {
     const [hasModalBelow, setHasModalBelow] = useState(false);
 
     useEffect(() => {
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && allOrganisations.length < isand_ids.length) {
             setallOrganisations(prev => [...prev, ...data]);
             setCurrentId(prev => prev + 1);
         }
@@ -61,8 +65,9 @@ const AuthorModal: FC<AuthorModalProps> = ({ open, handleClose, id }) => {
     useEffect(() => {
         const fetchAuthors = async () => {
             const authorsResponse = await dispatch(getAuthors.initiate() as any);
-            const fullName = author ? author[0].author_fio : '';
-            const matchingAuthor = authorsResponse.data.find((authorItem: { id: string; value: string }) => authorItem.value === fullName);
+            const fullName = author && author[0] ? author[0].fio : '';
+            console.log("fullName: ", fullName);
+            const matchingAuthor = authorsResponse.data?.find((authorItem: { id: string; value: string }) => authorItem.value === fullName);
             if (matchingAuthor) {
                 setMatchingAuthorId(matchingAuthor.id);
             }
@@ -70,6 +75,7 @@ const AuthorModal: FC<AuthorModalProps> = ({ open, handleClose, id }) => {
 
         fetchAuthors();
     }, [dispatch, author]); 
+
 
     const { data: prndAuthor, isLoading: prndAuthorLoading } = useGetAuthorInfoQuery(matchingAuthorId, { skip: matchingAuthorId === null });
 
@@ -145,13 +151,17 @@ const AuthorModal: FC<AuthorModalProps> = ({ open, handleClose, id }) => {
 
                     {isLoading ? (
                         <Typography>Загрузка информации об авторе...</Typography>
+                    ) : authorError ? (
+                        <Typography color="error">
+                            {authorError.status === 404 ? "Автор не найден" : "Произошла ошибка при загрузке данных"}
+                        </Typography>
                     ) : (
                         <>
                                 
-                                    {!isLoading && author && (
+                                    {!isLoading && author && author[0] && (
                                         <AuthorPersonHatCard
                                             author={{
-                                                a_fio: author[0].author_fio,
+                                                a_fio: author[0].fio,
                                                 a_aff_org_name: author[0].org_names,
                                                 avatar: author[0].avatar,
                                             }}
@@ -166,11 +176,6 @@ const AuthorModal: FC<AuthorModalProps> = ({ open, handleClose, id }) => {
                                     onChange={handleTabChange}
                                     propsValue={tabIndex}
                                     fontSize={25}
-                                />
-                                <AuthorOverviewTab 
-                                    prndAuthor={prndAuthor} 
-                                    matchingAuthorId={matchingAuthorId} 
-                                    prndAuthorLoading={prndAuthorLoading} 
                                 />
                         </>
                     )}

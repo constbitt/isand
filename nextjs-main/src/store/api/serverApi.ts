@@ -31,6 +31,7 @@ export const serverApi = createApi({
     reducerPath: "serverApi",
     baseQuery: fetchBaseQuery({
         baseUrl: api_server,
+
     }),
     extractRehydrationInfo(action, {reducerPath}) {
         if (action.type === HYDRATE) {
@@ -118,8 +119,21 @@ export const serverApi = createApi({
             query: (arg) => `/pathes?level=${arg.level}`
         }),
         getRatings: builder.query<RatingsResponseItem[], RatingsRequest>({
-            query: (arg) => `/raitings?path=${arg.path}&type=${arg.type}`
+            query: (arg) => `/raitings?path=${arg.path}&type=${arg.type}&show_all=${true}`
         }),
+        downloadAuthorData: builder.query<String, {author_id: number | string}> ({
+            query: (arg) => `/download_author_data?author_id=${arg.author_id}`
+        }),
+        checkDownloadStatus: builder.query<String, void>({
+            query: () => '/check_download_status',
+          }),          
+        getMetrics: builder.query<any, { author_id: number; factor_level: number; k1_coefficient: number }>({
+            queryFn: async (arg) => {
+                const response = await fetch(`${api_server}/calculate_smm?author_id=${arg.author_id}&factor_level=${arg.factor_level}&k1_coefficient=${arg.k1_coefficient}`);
+                const text = await response.text();
+                return { data: text };
+            }
+        }),  
         getPostsForGraph: builder.mutation<PostsForGraphResponsePreparedItem[], PostsForGraphRequest>({
             query: (arg) => {
                 return {
@@ -327,11 +341,84 @@ export const serverApi = createApi({
                 method: "POST",
                 body: arg
             }),
-        })
+        }),
+        filterIds: builder.mutation<any, { ids: number[]; targets: string[] }>({
+            query: (arg) => ({
+                url: "/filter_ids",
+                method: "POST",
+                body: arg,
+            }),
+        }),
+
+        filterIdsAnnotations: builder.mutation<any, { ids: number[]; targets: string[] }>({
+            query: (arg) => ({
+                url: "/filter_ids_annotations",
+                method: "POST",
+                body: arg,
+            }),
+        }),
+        convertId: builder.query<any, { id: number }>({
+            query: (arg) => `/convert_id?id=${arg.id}&source_id=account_db_b&target_id=prnd`,
+        }),
+
+        getPathAnnotations: builder.query<Path[], { level: number }>({
+            query: (arg) => `/pathes_annotations?level=${arg.level}`
+        }),
+        getRatingsAnnotations: builder.query<RatingsResponseItem[], RatingsRequest>({
+            query: (arg) => `/raitings_annotations?path=${arg.path}&type=${arg.type}&show_all=${true}`
+        }),
+        downloadAuthorDataAnnotations: builder.query<String, {author_id: number | string}> ({
+            query: (arg) => `/download_author_data_annotations?author_id=${arg.author_id}`
+        }),     
+        downloadSingleAuthorDataAnnotations: builder.query<String, {author_id: number | string}> ({
+            query: (arg) => `/download_single_author_annotation_data?author_id=${arg.author_id}`
+        }),      
+        getMetricsAnnotations: builder.query<any, { author_id: number; factor_level: number; k1_coefficient: number }>({
+            queryFn: async (arg) => {
+                const response = await fetch(`${api_server}/calculate_smm_annotations?author_id=${arg.author_id}&factor_level=${arg.factor_level}&k1_coefficient=${arg.k1_coefficient}`);
+                const text = await response.text();
+                return { data: text };
+            }
+        }),
+        getPostsForGraphAnnotations: builder.mutation<PostsForGraphResponsePreparedItem[], PostsForGraphRequest>({
+            query: (arg) => {
+                return {
+                    url: "/posts_for_graph_annotations",
+                    method: "POST",
+                    body: arg,
+                };
+            },
+            transformResponse: (baseQueryReturnValue: PostsForGraphResponse) => {
+                return preparePostForGraphResponse(baseQueryReturnValue);
+            }
+        }),
+        getArticleRatingAnnotations: builder.mutation<ArticleRatingResponsePreparedItem[], ArticleRatingRequest>({
+            query: (arg) => ({
+                url: "/articleRaiting_annotations",
+                method: "POST",
+                body: arg,
+            }),
+            transformResponse: (baseQueryReturnValue: ArticleRatingResponse) => {
+                return prepareArticleRatingResponse(baseQueryReturnValue)
+            }
+        }),
+
+        extractPdfText: builder.mutation<any, File>({
+            query: (file) => {
+                const formData = new FormData();
+                formData.append("file", file);
+
+                return {
+                    url: "/extract_pdf_text",
+                    method: "POST",
+                    body: formData,
+                };
+            },
+    }),
+
     }),
 });
 
-// Export hooks for usage in functional components
 export const {
     useProduceConnectivityGraphMutation,
     useProduceAuthorPublicationsCountMutation,
@@ -339,14 +426,29 @@ export const {
     useGetPostsForGraphMutation,
     useGetPathQuery,
     useGetRatingsQuery,
+    useDownloadAuthorDataQuery,
+    useCheckDownloadStatusQuery,
+    useGetMetricsQuery,
     useGetAuthorsPostsQuery,
     useGetJournalsPostsQuery,
     useGetConferencesPostsQuery,
     useGetCitiesPostsQuery,
     useGetOrganizationsPostsQuery,
     useTranslateIdMutation,
+    useFilterIdsMutation,
+    useConvertIdQuery,
+    useDownloadAuthorDataAnnotationsQuery,
+    useDownloadSingleAuthorDataAnnotationsQuery,
+    useFilterIdsAnnotationsMutation,
+    useGetArticleRatingAnnotationsMutation,
+    useGetPathAnnotationsQuery,
+    useGetMetricsAnnotationsQuery,
+    useGetPostsForGraphAnnotationsMutation,
+    useGetRatingsAnnotationsQuery,
+    useGetOrganizationsQuery,
+    useExtractPdfTextMutation,
     util: {getRunningQueriesThunk},
 } = serverApi;
 
 // export endpoints for use in SSR
-export const {getAuthors, getJournals, getConferences, getOrganizations, getCities, getPath, getRatings} = serverApi.endpoints;
+export const {getAuthors, getJournals, getConferences, getOrganizations, getCities, getPath, getPathAnnotations, getRatings, getMetrics} = serverApi.endpoints;

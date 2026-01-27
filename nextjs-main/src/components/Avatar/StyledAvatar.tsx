@@ -47,10 +47,12 @@ const StyledAvatar: React.FC<StyledAvatarProps> = ({ fio, width, height, url, ed
     }
 
     function stringAvatar(name: string, width: number, height: number) {
-        const initials = name.split(' ').map(word => word[0]).join('').slice(0, 2);
+        const initials = name && name.trim() ? 
+            name.split(' ').map(word => word[0]).join('').slice(0, 2) : 
+            '?';
         return {
             sx: {
-                bgcolor: stringToColor(name),
+                bgcolor: stringToColor(name || ''),
                 width: `${width}px`,
                 height: `${height}px`,
                 fontSize: `${width / 2.5}px`,

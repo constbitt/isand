@@ -64,7 +64,7 @@ const PostsArticlePlotWithCard = () => {
                 selected_type: "authors",
                 years: time_range
             } as PostsForGraphRequest;
-
+console.log("req_authors: ", req_authors);
             const req_labs = {
                 selected_authors: selected_laboratories.map(item => item.div_id),
                 selected_works_id: selected_works.map(item => item.id),
@@ -79,7 +79,7 @@ const PostsArticlePlotWithCard = () => {
                 years: time_range
             } as PostsForGraphRequest;
             
-
+console.log("req_labs: ", req_labs);
             const authors_resp = getPosts(req_authors);
             const labs_resp = getPosts(req_labs);
 
@@ -98,6 +98,11 @@ const PostsArticlePlotWithCard = () => {
                                 } as unknown as { name: string } & { [ids: string]: number };
                             }
                             prep_resp[t_item.value as keyof typeof prep_resp][item.author] = t_item.count;
+                             // ВЫВОД В КОНСОЛЬ:
+            //console.log(
+              //  `Термин: ${a.at(a.length - 1) || t_item.value}, Автор/Лаборатория: ${item.author}, Вхождений: ${t_item.count}`
+            //);
+            //console.log(prep_resp);
                         }
                     });
                 });
@@ -120,7 +125,7 @@ const PostsArticlePlotWithCard = () => {
         thesaurus_path, selected_authors, selected_works,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     ]);
-
+    console.log("chartData: ", chartData);
     return (
         selected_authors.length > 0 ? (
             <Stack direction={"row"} width={'80%'} alignSelf={'center'} spacing={2}>

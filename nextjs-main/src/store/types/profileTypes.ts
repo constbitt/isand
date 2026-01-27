@@ -10,6 +10,10 @@ export interface ProfilesState {
     category_cutting: number,
     terming_cutting: number,
     time_range: number[],
+    time_range_bounds: {
+        min: number;
+        max: number;
+    },
     scientific_terms: boolean,
     thesaurus_path: string[],
     graph_type: number,

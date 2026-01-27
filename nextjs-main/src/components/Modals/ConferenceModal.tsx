@@ -46,6 +46,7 @@ const ConferenceModal: FC<ConferenceModalProps> = ({ open, handleClose, id }): R
         <Modal
             open={open}
             onClose={handleClose}
+            role="dialog"
             sx={{
                 display: 'flex',
                 justifyContent: 'center',
@@ -77,10 +78,12 @@ const ConferenceModal: FC<ConferenceModalProps> = ({ open, handleClose, id }): R
                     <Typography>Загрузка информации о конференции...</Typography>
                 ) : (
                     <>
-                    
-                        {data && (
+                        <Typography variant="h4" sx={{ mb: 2 }}>
+                            Профиль конференции
+                        </Typography>
+                        {data && data[0] && (
                             <ConferencePersonHatCard 
-                                id={data[0].conf_isand_id}
+                                conference={data[0]}
                             />
                         )}
                         <Box sx={{ mt: 4 }}></Box>

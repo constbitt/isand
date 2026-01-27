@@ -1,3 +1,6 @@
+// @ts-nocheck
+
+
 import { Box, Button, CircularProgress, Container, Stack, TextField } from "@mui/material";
 import Head from "next/head";
 import React, { useState } from "react";

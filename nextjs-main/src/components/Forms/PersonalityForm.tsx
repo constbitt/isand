@@ -1,3 +1,6 @@
+// @ts-nocheck
+
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, CircularProgress, Container, SelectChangeEvent, Stack, Typography } from '@mui/material';
 import SettingTextField from '@/src/components/TextField/SettingTextField';

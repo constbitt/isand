@@ -1,5 +1,5 @@
 import AbortController from "abort-controller";
-import React, {FC, ReactElement, ReactNode, useEffect} from 'react'
+import React, {FC, ReactElement, ReactNode, useEffect, useState} from 'react'
 import type {NextPage} from 'next'
 import type {AppProps} from 'next/app'
 import '../styles/globals.css'
@@ -18,6 +18,9 @@ import DefaultLayout from "@/src/components/Layouts/DefaultLayout/DefaultLayout"
 import {useRouter} from "next/router";
 import {breadcrumbs} from "@/src/configs/breadcrumbsConfig";
 
+import Banner from '@/src/components/Banner/Banner';
+
+
 Object.assign(globalThis, {
     fetch,
     Headers,
@@ -35,26 +38,18 @@ type AppPropsWithLayout = AppProps & {
     Component: NextPageWithLayout
 }
 
-const App: NextPage<AppProps> = ({Component, ...rest}: AppPropsWithLayout) => {
-
-
-    const router = useRouter()
-
+const App: NextPage<AppProps> = ({ Component, ...rest }: AppPropsWithLayout) => {
+    //const [isBannerOpen, setIsBannerOpen] = useState(true);
+    const router = useRouter();
+/*
     useEffect(() => {
-        document.querySelectorAll("title").item(0).text = (breadcrumbs as any)[router.pathname.slice(1)]
+        setIsBannerOpen(true);
+    }, [router.pathname]);
+*/
+    useEffect(() => {
+    document.title = (breadcrumbs as any)[router.pathname.slice(1)] || "ISAND";
     }, [router.pathname, breadcrumbs]);
-    /*
-    useEffect(() => {
-        const handleIdle = () => {
-            router.push('/'); // Перенаправление на главную страницу
-        };
 
-        const timer = setTimeout(handleIdle, 600000); // 5 минут (300000 миллисекунд)
-
-        return () => clearTimeout(timer);
-    }, [router]);
-
-    */
     const getRootLayout = Component.getRootLayout ?? ((page) => {
         return <RootLayout>{page}</RootLayout>
     })
@@ -71,7 +66,8 @@ const App: NextPage<AppProps> = ({Component, ...rest}: AppPropsWithLayout) => {
         <>
             <Provider store={store}>
                 <ThemeProvider theme={mainTheme}>
-                    {getRootLayout(getLayout(<Component  {...pageProps} />))}
+                    {/*<Banner isOpen={isBannerOpen} onClose={() => setIsBannerOpen(false)} />*/}
+                    {getRootLayout(getLayout(<Component {...pageProps} />))}
                 </ThemeProvider>
             </Provider>
         </>

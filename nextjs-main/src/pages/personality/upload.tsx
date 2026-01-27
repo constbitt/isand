@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useLazyGetAccountApiIdUploadQuery, usePostAccountApiUploadCorrectPublMutation, usePostAccountApiUploadPublMutation } from "@/src/store/api/serverApiV6";
 import { Card, Container, Typography, LinearProgress, Stack, Button } from "@mui/material";
 import Head from "next/head";

@@ -82,9 +82,28 @@ const Home = (): React.ReactElement => {
                 <title>Домашняя страница</title>
             </Head>
             <main className="flex flex-col items-center">
-                <h1 className="w-[67.5vw] text-blue-main text-[48px] text-center font-bold" style={{ lineHeight: 1.15 }}>
-                    Информационная система анализа научной деятельности
-                </h1>
+
+            <div className="w-[67.5vw] flex justify-center mt-4">
+<h1
+  className="text-blue-main text-[48px] font-bold text-center"
+  style={{ lineHeight: 1.15 }}
+>
+  <span className="relative inline-block">
+    <Image
+      src="/santa-hat.svg"
+      alt="Новогодняя шапка"
+      width={64}
+      height={64}
+      className="absolute left-1/2 -top-6 -translate-x-1/2 rotate-[35deg]"
+    />
+    И
+  </span>
+  нформационная система анализа научной деятельности
+</h1>
+
+            </div>
+
+
                 <div className="w-[67.5vw] mt-[52px] grid grid-cols-3 gap-5">
                 {cards.map((item, index) => {
 

@@ -1,18 +1,32 @@
 // @ts-nocheck
 import { FC } from 'react';
-import { Card, CardContent, Stack, Typography } from '@mui/material';
+import { Card, CardContent, Stack, Typography, CircularProgress } from '@mui/material';
 import { useGetPublInfoQuery } from '@/src/store/api/serverApiV2_5';
 
-export const formatAuthorName = (authorString: string) => {
-  return authorString.split(';').map(author => {
-    const words = author.trim().split(' ');
-    const surname = words[0];
-    const initials = words.slice(1)
-      .map(word => `${word[0]}.`)
-      .join(' ');
+export const formatAuthorName = (authorString: string | undefined): string => {
+    if (!authorString) return '';
     
-    return `${surname} ${initials}`;
-  }).join(', ');
+    try {
+        const authors = authorString.split(';').map(author => {
+            const trimmedAuthor = author.trim();
+            if (!trimmedAuthor) return '';
+            
+            const parts = trimmedAuthor.split(' ');
+            if (parts.length < 2) return trimmedAuthor;
+            
+            const lastName = parts[0];
+            const initials = parts.slice(1)
+                .map(part => `${part.charAt(0)}.`)
+                .join('');
+            
+            return `${lastName} ${initials}`;
+        });
+        
+        return authors.filter(author => author).join(', ');
+    } catch (error) {
+        console.error('Error formatting author name:', error);
+        return authorString || '';
+    }
 };
 
 interface PublicationCardProps {
@@ -27,9 +41,25 @@ export const PublicationCard: FC<PublicationCardProps> = ({ post }) => {
     return <Typography>Ошибка: ID публикации не найден.</Typography>;
   }
 // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: publicationInfo } = useGetPublInfoQuery(post.id.toString(), {
+  const { data: publicationInfo, isLoading, error } = useGetPublInfoQuery(post.id.toString(), {
     skip: !post.id
   });
+
+  if (isLoading) {
+    return (
+      <Card sx={{ m: '5px', p: 2 }}>
+        <CircularProgress />
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card sx={{ m: '5px', p: 2 }}>
+        <Typography color="error">Ошибка при загрузке данных публикации</Typography>
+      </Card>
+    );
+  }
 
   return (
     <Card 

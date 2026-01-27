@@ -12,10 +12,11 @@ export const alertationSlice = createSlice({
     name: "alertation",
     initialState: initState,
     reducers: {
-        setAlert: (state, action: PayloadAction<{message: string, severity: 'error'|'success', open: boolean}>) => {
+        setAlert: (state, action: PayloadAction<{message: string, severity: 'error'|'success', open: boolean, autoHideDuration?: number}>) => {
             state.message = action.payload.message
             state.severity = action.payload.severity
             state.open = action.payload.open
+            state.autoHideDuration = action.payload.autoHideDuration
         },
         setAlertOpen: (state, action: PayloadAction<boolean>) => {
             state.open = action.payload
@@ -31,3 +32,4 @@ export const {
 export const selectAlertMessage = (state: RootState): string => state.alertation.message
 export const selectAlertOpen = (state: RootState): boolean => state.alertation.open
 export const selectAlertSeverity = (state: RootState): 'error'| 'success' => state.alertation.severity
+export const selectAlertAutoHideDuration = (state: RootState): number | undefined => state.alertation.autoHideDuration

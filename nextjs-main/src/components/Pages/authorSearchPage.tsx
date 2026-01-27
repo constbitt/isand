@@ -29,7 +29,6 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
     };
     const { data: authors, error: authorsError } = authorsResponse;
     const authorFio = typeof window !== 'undefined' ? getQueryParameter(window.location.href, "author_fio") || "" : "";
-
     useEffect(() => {
         
         if (authors && authorFio) {
@@ -41,9 +40,12 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
     }, [authors, router.isReady, router.query.creature_id]);
 
     
-    const { data: authorByFio, isLoading: loadingByFio } = useGetAuthorByFioQuery<any>(authorFio || "");
     const { data: author, isLoading } = useGetAuthorInfoQuery(idAuthor, { skip: idAuthor < 0 });
     const { data: authorByPrnd } = useGetAuthorByPrndQuery(idAuthor, { skip: idAuthor < 0 });
+    const { data: authorByFio, isLoading: loadingByFio } =
+    useGetAuthorByFioQuery<any>(authorByPrnd?.[0]?.fio || authorFio || "");
+    console.log("authorByFio: ", authorByFio);
+    console.log("authorByPrnd: ", authorByPrnd);
     const authorIsandId = idAuthor < 0 && !loadingByFio && authorByFio ? authorByFio[0].author_isand_id : authorByPrnd ? authorByPrnd[0].author_isand_id : null;
     const { data: authorJournals } = useGetAuthorJournalsQuery(authorIsandId, { skip: !authorIsandId });
     const { data: authorConferences } = useGetAuthorConferencesQuery(authorIsandId, { skip: !authorIsandId });
@@ -53,7 +55,6 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
     const [allOrganisations, setallOrganisations] = useState<any[]>([]);
     const { data, error } = useGetOrgInfoQuery(isand_ids[currentId]);
     const { data: publications, isLoading: publicationsLoading } = useGetPublicationsByAuthorIdQuery(authorIsandId, { skip: authorIsandId < 0 });
-
 
     
     useEffect(() => {
@@ -78,7 +79,7 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
   
     const tabs = [
         { 
-          label: "Обзор", component: <AuthorOverviewTab prndAuthor={author || authorByPrnd} matchingAuthorId={idAuthor} prndAuthorLoading={isLoading} /> 
+          label: "Обзор", component: <AuthorOverviewTab prndAuthor={authorByPrnd || author} matchingAuthorId={idAuthor} prndAuthorLoading={isLoading} /> 
         },
         { 
           label: "Публикации", 
@@ -101,14 +102,14 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
                         {!loadingByFio && authorByFio && (
                         <>
                             <AuthorPersonHatCard
-                            author={{
-                                a_fio: authorFio || authorByFio[0].author_fio,
-                                a_aff_org_name: authorByFio[0].org_names || authorByPrnd[0].org_names || "Не указано",
-                                avatar: authorByFio[0].avatar,
-                            }}
-                            sx={{
-                                '& .fio-text': { fontSize: '50px' },
-                            }}
+                                author={{
+                                    a_fio: authorByPrnd[0].fio || authorFio || authorByFio[0].author_fio,
+                                    a_aff_org_name: authorByFio[0].org_names || authorByPrnd[0].org_names || "Не указано",
+                                    avatar: authorByFio[0].avatar,
+                                }}
+                                sx={{
+                                    '& .fio-text': { fontSize: '50px' },
+                                }}
                             />
                         </>
                         )}
@@ -154,7 +155,7 @@ const AuthorSearchPage: React.FC<{ authorsResponse: ApiResponse<Author[]> }> = (
                     <>
                         <AuthorPersonHatCard
                         author={{
-                            a_fio: author.fio || authorByPrnd[0].author_fio,
+                            a_fio: author.fio || authorByPrnd[0].fio,
                             a_aff_org_name: author.affiliation,
                             avatar: author.avatar,
                         }}

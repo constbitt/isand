@@ -33,8 +33,6 @@ const OrganisationModal: FC<OrganisationModalProps> = ({ open, handleClose, id }
         //{ label: "Журналы и Конференции", component: <JournalsAndConferencesTab /> },
     ];
 
-
-
     useEffect(() => {
         setTimeout(() => {
             const modals = document.querySelectorAll('.MuiModal-root');

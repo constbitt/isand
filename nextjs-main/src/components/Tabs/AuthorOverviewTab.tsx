@@ -11,11 +11,14 @@ interface AuthorOverviewTabProps {
 }
 
 const AuthorOverviewTab: FC<AuthorOverviewTabProps> = ({ prndAuthor, matchingAuthorId, prndAuthorLoading }) => {
+    /*
     const { data: authorByPrnd } = useGetAuthorByPrndQuery(prndAuthor?.id, { skip: prndAuthor < 0 });
     const authorIsandId = authorByPrnd ? authorByPrnd[0]?.author_isand_id : null;
+    */
+    const authorIsandId = prndAuthor ? prndAuthor[0]?.author_isand_id : null;
     const {data: authorActivity } = useGetAuthorsActivityQuery(authorIsandId, {skip: authorIsandId < 0});
-    const publicationsCount = authorActivity ? calculateAllCount(authorActivity) : null;
-    
+    const publicationsCount = Array.isArray(authorActivity) ? calculateAllCount(authorActivity) : null;
+    console.log("authorByPrnd: ", prndAuthor);
     return (
         <Box             
             sx={{
