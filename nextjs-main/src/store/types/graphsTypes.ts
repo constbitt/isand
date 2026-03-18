@@ -166,3 +166,10 @@ export interface AllAviableSource {
     name_disp: string
     name_req: string
 }
+
+export interface GetAuthorPublicationsCountByYearRequest {
+    auth_prnd_id: number;
+    year: number;
+}
+
+export type GetAuthorPublicationsCountByYearResponse = number;

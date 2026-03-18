@@ -7,6 +7,8 @@ import SearchImg from "@/src/assets/images/home/search.svg";
 import DeepsearchImg from "@/src/assets/images/home/deepSearch.svg";
 import GlossaryImg from "@/src/assets/images/home/glossary.svg";
 import EvolIcon from "@/src/assets/images/home/chart.svg";
+import AnalysisImg from "@/src/assets/images/home/analysis.svg";
+import ClusterImg from "@/src/assets/images/home/cluster.svg";
 import {Card} from "@/src/store/types/homeTypes";
 
 export const cards: readonly Card[] = [
@@ -71,14 +73,14 @@ export const cards: readonly Card[] = [
         name: 'Кластеризация',
         text: '',
         link: '/cluster',
-        src: GlossaryImg,
+        src: ClusterImg,
     },
 
         {
         name: 'Интеллектуальный анализ статей',
-        text: '',
+        text: 'Семантический анализ загруженной пользователем статьи',
         link: '/articleAnalysis',
-        src: GlossaryImg,
+        src: AnalysisImg,
     },
 
 

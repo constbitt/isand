@@ -88,17 +88,8 @@ const Home = (): React.ReactElement => {
   className="text-blue-main text-[48px] font-bold text-center"
   style={{ lineHeight: 1.15 }}
 >
-  <span className="relative inline-block">
-    <Image
-      src="/santa-hat.svg"
-      alt="Новогодняя шапка"
-      width={64}
-      height={64}
-      className="absolute left-1/2 -top-6 -translate-x-1/2 rotate-[35deg]"
-    />
-    И
-  </span>
-  нформационная система анализа научной деятельности
+
+  Информационная система анализа научной деятельности
 </h1>
 
             </div>

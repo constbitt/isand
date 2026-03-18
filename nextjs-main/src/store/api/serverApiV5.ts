@@ -114,6 +114,13 @@ export const serverApiV5 = createApi({
                 body: lists,
             }),
         }),
+
+        getAuthorPublicationsCountByYear: builder.query<number, { auth_prnd_id: number}>({
+            query: ({ auth_prnd_id }) => ({
+                url: `http://193.232.208.58:9002/grapher/get_author_publications`,
+                params: { auth_prnd_id: auth_prnd_id },
+            }),
+        }),
     }),
 });
 
@@ -135,6 +142,7 @@ export const {
     useGetAllAviableConferencesQuery,
     useGetAllSubjectAreasQuery,
     usePostAllItemsMutation,
+    useGetAuthorPublicationsCountByYearQuery,
     util: {getRunningQueriesThunk}
 } = serverApiV5
 
@@ -157,4 +165,5 @@ export const {
     postProduceAuthorConnectivityGraph,
     getAllSubjectAreas,
     postAllItems,
+    getAuthorPublicationsCountByYear,
 } = serverApiV5.endpoints;

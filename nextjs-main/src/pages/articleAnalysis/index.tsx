@@ -10,6 +10,7 @@ import {
 import Head from 'next/head';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import ClearIcon from '@mui/icons-material/Clear';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useExtractPdfTextMutation } from "@/src/store/api/serverApi";
 
 const UploadPublicationContent: FC = () => {
@@ -20,10 +21,9 @@ const UploadPublicationContent: FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [step, setStep] = useState<'upload' | 'result'>('upload');
-
+  const [visiblePublications, setVisiblePublications] = useState(3);
 
   const [extractPdfText, { isLoading }] = useExtractPdfTextMutation();
-
 
   const handleFile = (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -37,8 +37,6 @@ const UploadPublicationContent: FC = () => {
     const url = URL.createObjectURL(file);
     setPdfUrl(url);
   };
-
-
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -91,8 +89,9 @@ const UploadPublicationContent: FC = () => {
     setUploadError(null);
 
     try {
-      const response = await extractPdfText(selectedFile).unwrap();
-      setPdfText(response.text);
+      // пока запрос терминов не работает
+      //const response = await extractPdfText(selectedFile).unwrap();
+      //setPdfText(response.text);
       setStep('result');
     } catch (e) {
       console.error(e);
@@ -100,6 +99,127 @@ const UploadPublicationContent: FC = () => {
     }
   };
 
+  const handleDownloadReport = () => {
+    if (selectedFile) {
+      const link = document.createElement('a');
+      link.href = pdfUrl || URL.createObjectURL(selectedFile);
+      link.download = `report_${selectedFile.name}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const reportContent = generateMockReport();
+      const blob = new Blob([reportContent], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'analysis_report.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleShowMore = () => {
+    setVisiblePublications(prev => prev + 3);
+  };
+
+  const generateMockReport = () => {
+    const report = `
+      ОТЧЕТ ОБ АНАЛИЗЕ ПУБЛИКАЦИИ
+      
+      Извлеченные термины:
+      ${mockTerms.map(t => `- ${t.term} (частота: ${t.freq})`).join('\n')}
+      
+      Распределение по категориям:
+      ${mockCategories.map(c => `- ${c.name}: ${c.value}%`).join('\n')}
+      
+      Похожие публикации:
+      ${mockSimilarPublications.map(p => `- ${p.title} (${p.authors}, ${p.year}) - сходство: ${p.similarity * 100}%`).join('\n')}
+    `;
+    return report;
+  };
+
+  const mockTerms = [
+    { term: 'machine learning', freq: 42 },
+    { term: 'neural network', freq: 35 },
+    { term: 'named entity recognition', freq: 27 },
+    { term: 'term extraction', freq: 22 },
+    { term: 'language model', freq: 18 },
+  ];
+
+  const mockCategories = [
+    { name: 'ML / AI', value: 55 },
+    { name: 'NLP', value: 30 },
+    { name: 'Statistics', value: 15 },
+  ];
+
+  const mockSimilarPublications = [
+    {
+      title: 'Automatic Term Extraction Using Neural Language Models',
+      authors: 'Zhang et al.',
+      year: 2023,
+      similarity: 0.87,
+      reason: 'Совпадение ключевых терминов и контекстных представлений'
+    },
+    {
+      title: 'A Survey on Keyword and Term Extraction Methods',
+      authors: 'Kumar, Singh',
+      year: 2022,
+      similarity: 0.81,
+      reason: 'Общий предмет исследования и пересекающиеся категории'
+    },
+    {
+      title: 'LLM-based Approaches for Scientific Text Mining',
+      authors: 'Fernandez et al.',
+      year: 2024,
+      similarity: 0.76,
+      reason: 'Использование LLM и методы обработки научных текстов'
+    },
+    {
+      title: 'Deep Learning for Scientific Document Analysis',
+      authors: 'Chen et al.',
+      year: 2023,
+      similarity: 0.72,
+      reason: 'Применение глубокого обучения для анализа научных документов'
+    },
+    {
+      title: 'Knowledge Graph Construction from Research Papers',
+      authors: 'Wilson, Brown',
+      year: 2022,
+      similarity: 0.68,
+      reason: 'Построение графов знаний на основе научных публикаций'
+    },
+    {
+      title: 'Automated Taxonomy Generation in Scientific Domains',
+      authors: 'Martinez et al.',
+      year: 2023,
+      similarity: 0.65,
+      reason: 'Автоматическая генерация таксономий в научных областях'
+    },
+    {
+      title: 'Cross-Domain Term Alignment Methods',
+      authors: 'Thompson, Lee',
+      year: 2021,
+      similarity: 0.59,
+      reason: 'Методы выравнивания терминов между различными доменами'
+    },
+    {
+      title: 'Semantic Similarity in Scientific Literature',
+      authors: 'Garcia et al.',
+      year: 2022,
+      similarity: 0.54,
+      reason: 'Оценка семантической близости в научной литературе'
+    },
+    {
+      title: 'Topic Modeling for Research Trend Analysis',
+      authors: 'Patel, Kumar',
+      year: 2023,
+      similarity: 0.48,
+      reason: 'Тематическое моделирование для анализа трендов исследований'
+    }
+  ];
 
   return (
     <>
@@ -184,7 +304,7 @@ const UploadPublicationContent: FC = () => {
               </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 2 }}>
             <Button
               variant="contained"
               component="label"
@@ -204,12 +324,140 @@ const UploadPublicationContent: FC = () => {
             </>
           )}
 
-
           {step === 'result' && (
             <>
-              <Typography variant="h4" component="h1" gutterBottom>
-                Результаты анализа
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h4" component="h1">
+                  Результаты анализа
+                </Typography>
+              </Box>
+
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" gutterBottom>
+                  Извлечённые термины
+                </Typography>
+
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {mockTerms.map((t) => (
+                    <Paper
+                      key={t.term}
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        display: 'flex',
+                        gap: 1,
+                        alignItems: 'center'
+                      }}
+                    >
+                      <Typography fontWeight={500}>
+                        {t.term}
+                      </Typography>
+                      <Typography color="text.secondary">
+                        {t.freq}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Box>
+              </Box>
+
+              <Box sx={{ mt: 5 }}>
+                <Typography variant="h6" gutterBottom>
+                  Распределение терминов по категориям
+                </Typography>
+
+                {mockCategories.map((c) => (
+                  <Box key={c.name} sx={{ mb: 2 }}>
+                    <Typography>
+                      {c.name} — {c.value}%
+                    </Typography>
+                    <Box
+                      sx={{
+                        height: 12,
+                        borderRadius: 6,
+                        backgroundColor: '#E0E0E0',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          height: '100%',
+                          width: `${c.value}%`,
+                          backgroundColor: '#1B4596'
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              <Box sx={{ mt: 6 }}>
+                <Typography variant="h6" gutterBottom>
+                  Похожие публикации
+                </Typography>
+
+                {mockSimilarPublications.slice(0, visiblePublications).map((pub) => (
+                  <Paper
+                    key={pub.title}
+                    variant="outlined"
+                    sx={{ p: 2, mb: 2 }}
+                  >
+                    <Typography fontWeight={600}>
+                      {pub.title}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      {pub.authors}, {pub.year}
+                    </Typography>
+
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      {pub.reason}
+                    </Typography>
+
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption">
+                        Similarity score
+                      </Typography>
+                      <Box
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: '#E0E0E0',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            height: '100%',
+                            width: `${pub.similarity * 100}%`,
+                            backgroundColor: '#1B4596'
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Paper>
+                ))}
+
+                {visiblePublications < mockSimilarPublications.length && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={handleShowMore}
+                      sx={{
+                        borderColor: '#1B4596',
+                        color: '#1B4596',
+                        textTransform: 'none',
+                        fontSize: '16px',
+                        '&:hover': {
+                          borderColor: '#1B4596',
+                          backgroundColor: 'rgba(27,69,150,0.05)',
+                        }
+                      }}
+                    >
+                      Показать еще
+                    </Button>
+                  </Box>
+                )}
+              </Box>
 
               <Paper
                 variant="outlined"
@@ -225,12 +473,27 @@ const UploadPublicationContent: FC = () => {
                 {pdfText}
               </Paper>
 
-              <Button
-                sx={{ mt: 3 }}
-                onClick={handleClearFile}
-              >
-                Загрузить другой файл
-              </Button>
+              <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                <Button
+                  variant="outlined"
+                  onClick={handleClearFile}
+                >
+                  Загрузить другой файл
+                </Button>
+                <Button
+                  variant="contained"
+                  component="label"
+                  sx={{
+                    backgroundColor: '#1B4596',
+                    '&:hover': { backgroundColor: '#1B4596', opacity: 0.9 },
+                    textTransform: 'none',
+                    fontSize: '16px'
+                  }}
+                  onClick={handleDownloadReport}
+                >
+                  Загрузить отчет
+                </Button>
+              </Box>
             </>
           )}
 
@@ -267,7 +530,6 @@ const UploadPublicationContent: FC = () => {
                 height="600px"
                 style={{ border: '1px solid #ccc' }}
               />
-
             </Box>
           )}
         </Paper>

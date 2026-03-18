@@ -63,6 +63,7 @@ const RatingsCard = ({
     }, [
         curItem,
         // eslint-disable-next-line react-hooks/exhaustive-deps
+        
     ]);
 
     const isPageLoading = isPostsForGraphLoading || isArticleRatingLoading;

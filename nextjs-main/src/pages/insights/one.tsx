@@ -21,6 +21,8 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  ComposedChart,
+  Bar,
 } from 'recharts';
 import { ApiResponse } from '@/src/store/types/apiTypes';
 import { Author } from '@/src/store/types/authorTypes';
@@ -42,8 +44,22 @@ interface TopicYearData {
   totalPublications?: number;
 }
 
+interface PublicationTerms {
+  factors: Record<string, number>;
+  subfactors: Record<string, number>;
+  terms: Record<string, number>;
+}
+
 type EntityType = 'authors' | 'journals' | 'conferences' | 'organizations' | 'cities';
-type AnalysisMode = 'factors_terms' | 'subfactors_terms' | 'factors_publs' | 'subfactors_publs' | 'unique_terms_publs' | 'terms_occurrences';
+type AnalysisMode = 'factors_terms' | 'subfactors_terms' | 'terms_occurrences' | 'factors_publs' | 'subfactors_publs' | 'unique_terms_publs';
+
+// ========== КОНСТАНТЫ ==========
+const COMMON_TERMS = [
+  'Общенаучные термины',
+  'общенаучные термины',
+  'General scientific terms',
+  'general scientific terms'
+];
 
 // ========== КЕШИРОВАНИЕ ==========
 const createCache = () => {
@@ -75,6 +91,23 @@ const createCache = () => {
 };
 
 const apiCache = createCache();
+
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+const isCommonTerm = (term: string): boolean => {
+  return COMMON_TERMS.some(common => 
+    term.toLowerCase() === common.toLowerCase()
+  );
+};
+
+const filterOutCommonTerms = <T extends Record<string, number>>(obj: T): T => {
+  const filtered = {} as T;
+  for (const [key, value] of Object.entries(obj)) {
+    if (!isCommonTerm(key)) {
+      filtered[key as keyof T] = value as any;
+    }
+  }
+  return filtered;
+};
 
 // ========== HOOK ==========
 const useTopTopicsData = (
@@ -317,8 +350,7 @@ const useTopTopicsData = (
     console.log(`📤 Запрос: ${endpoint} с параметрами:`, params);
     
     if (cached) {
-      console.log(`🔄 Используем кеш для ${endpoint}, factor_level=${params.factor_level || '1'}`);
-      console.log('📊 Данные из кеша (первые 10 ключей):', Object.keys(cached).slice(0, 10));
+      console.log(`🔄 Используем кеш для ${endpoint}`);
       return cached;
     }
 
@@ -334,16 +366,9 @@ const useTopTopicsData = (
       
       const data = await response.json();
       
-      console.log(`✅ Данные от прокси для ${endpoint}, factor_level=${params.factor_level || '1'}:`);
-      console.log('📊 Количество ключей:', Object.keys(data).length);
-      console.log('🔍 Первые 10 ключей:', Object.keys(data).slice(0, 10));
-      
-      // Для отладки выводим примеры значений
-      if (Object.keys(data).length > 0) {
-        const sampleKeys = Object.keys(data).slice(0, 5);
-        const sampleData = sampleKeys.map(key => `${key}: ${data[key]}`).join(', ');
-        console.log(`📝 Примеры: ${sampleData}`);
-      }
+      console.log(`✅ Данные от прокси для ${endpoint}:`);
+      console.log('Тип ответа:', Array.isArray(data) ? 'массив' : 'объект');
+      console.log('Размер:', Array.isArray(data) ? data.length : Object.keys(data).length);
       
       apiCache.set(cacheKey, data);
       return data;
@@ -355,11 +380,26 @@ const useTopTopicsData = (
 
   const getPublicationIds = async (entityType: EntityType, entityId: string): Promise<number[]> => {
     const endpointMap = {
-      authors: { endpoint: 'authors_publs', param: 'id_author' },
-      journals: { endpoint: 'journals_publs', param: 'id_journal' },
-      conferences: { endpoint: 'conferences_publs', param: 'id_conference' },
-      organizations: { endpoint: 'organizations_publs', param: 'id_organization' },
-      cities: { endpoint: 'cities_publs', param: 'id_city' },
+      authors: { 
+        endpoint: 'authors_publs', 
+        param: 'auth_prnd_id'
+      },
+      journals: { 
+        endpoint: 'journals_publs', 
+        param: 'id_journal'
+      },
+      conferences: { 
+        endpoint: 'conferences_publs', 
+        param: 'id_conference' 
+      },
+      organizations: { 
+        endpoint: 'organizations_publs', 
+        param: 'id_organization' 
+      },
+      cities: { 
+        endpoint: 'cities_publs', 
+        param: 'id_city' 
+      },
     };
 
     const config = endpointMap[entityType];
@@ -367,11 +407,43 @@ const useTopTopicsData = (
       throw new Error(`Unknown entity type: ${entityType}`);
     }
 
-    return await fetchViaProxy(config.endpoint, { [config.param]: entityId });
+    const params: Record<string, string> = {};
+    if (entityType === 'authors') {
+      params['auth_prnd_id'] = entityId;
+      params['id_author'] = entityId;
+    } else {
+      params[config.param] = entityId;
+    }
+
+    const publications = await fetchViaProxy(config.endpoint, params);
+    
+    if (Array.isArray(publications)) {
+      console.log(`Получено публикаций: ${publications.length}`);
+      
+      if (publications.length > 0 && Array.isArray(publications[0])) {
+        const publicationsWithYear = publications.map(([id, year]) => ({
+          id,
+          year,
+          metadata: { 'Publication year': year }
+        }));
+        
+        publicationsWithYear.forEach(({ id, metadata }) => {
+          const cacheKey = `publs_metadata:${JSON.stringify({ id_publ: id.toString() })}`;
+          apiCache.set(cacheKey, metadata);
+        });
+        
+        console.log('Пример метаданных:', publicationsWithYear[0]);
+        
+        return publicationsWithYear.map(p => p.id);
+      }
+      
+      return publications;
+    }
+    
+    return [];
   };
 
-  // Параллельная загрузка метаданных
-  const fetchMetadataBatch = async (publicationIds: number[]) => {
+  const fetchPublicationTerms = async (publicationIds: number[]): Promise<Map<number, PublicationTerms>> => {
     const batchSize = 20;
     const batches = [];
     
@@ -380,91 +452,64 @@ const useTopTopicsData = (
       batches.push(batch);
     }
 
-    const allMetadata = [];
+    const resultsMap = new Map<number, PublicationTerms>();
     
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       const batchPromises = batch.map(async (publId) => {
         try {
-          return await fetchViaProxy('publs_metadata', { id_publ: publId.toString() });
-        } catch (err) {
-          console.error(`Ошибка метаданных ${publId}:`, err);
-          return null;
-        }
-      });
-      
-      const batchResults = await Promise.all(batchPromises);
-      allMetadata.push(...batchResults.filter(Boolean));
-      
-      setProgress(Math.round(((i + 1) / batches.length) * 50));
-    }
-    
-    return allMetadata;
-  };
-
-  // Параллельная загрузка данных (факторов/терминов)
-  const fetchDataBatch = async (publicationIds: number[], level: '1' | '2' | '3') => {
-    const batchSize = 20;
-    const batches = [];
-    
-    for (let i = 0; i < publicationIds.length; i += batchSize) {
-      const batch = publicationIds.slice(i, i + batchSize);
-      batches.push(batch);
-    }
-
-    const allData = [];
-    
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
-      const batchPromises = batch.map(async (publId) => {
-        try {
-          const data = await fetchViaProxy('get_deltas', {
-            id_publ: publId.toString(),
-            factor_level: level
-          });
+          const data = await fetchViaProxy('get_publication_terms', {
+            id_publ: publId.toString()
+          }) as PublicationTerms & { publication_id: number };
           
-          // ДЕБАГ: проверяем что приходит
-          if (level === '3' && analysisMode.includes('terms')) {
-            console.log(`Данные для публикации ${publId}, level=3, кол-во терминов:`, Object.keys(data).length);
-            console.log('Первые 10 терминов:', Object.entries(data).slice(0, 10));
+          if (data && typeof data === 'object') {
+            // Фильтруем общенаучные термины на всех уровнях
+            const filteredData: PublicationTerms = {
+              factors: filterOutCommonTerms(data.factors || {}),
+              subfactors: filterOutCommonTerms(data.subfactors || {}),
+              terms: filterOutCommonTerms(data.terms || {})
+            };
+            
+            console.log(`📊 Публикация ${publId}: факторов=${Object.keys(filteredData.factors).length}, подфакторов=${Object.keys(filteredData.subfactors).length}, терминов=${Object.keys(filteredData.terms).length}`);
+            
+            resultsMap.set(publId, filteredData);
           }
-          
-          return data;
         } catch (err) {
-          console.error(`Ошибка данных ${publId}:`, err);
-          return {};
+          console.error(`❌ Ошибка данных для публикации ${publId}:`, err);
+          resultsMap.set(publId, { factors: {}, subfactors: {}, terms: {} });
         }
       });
       
-      const batchResults = await Promise.all(batchPromises);
-      allData.push(...batchResults);
-      
+      await Promise.all(batchPromises);
       setProgress(50 + Math.round(((i + 1) / batches.length) * 50));
     }
     
-    return allData;
+    return resultsMap;
   };
+
+
 
   // ========== АЛГОРИТМЫ АНАЛИЗА ==========
   
   // 1. Факторы (вхождения)
   const analyzeFactorsByTerms = (
     metadataList: any[],
-    topicsList: any[],
+    termsMap: Map<number, PublicationTerms>,
     allPublicationIds: number[]
   ) => {
     console.log('=== DEBUG: analyzeFactorsByTerms ===');
-    console.log('Всего публикаций:', allPublicationIds.length);
+    console.log('всего публикаций:', allPublicationIds.length);
     
     const allTopicsData: { [topic: string]: number } = {};
     const yearData: { [year: number]: { [topic: string]: number } } = {};
     const yearPublicationCount: { [year: number]: number } = {};
 
     for (let i = 0; i < allPublicationIds.length; i++) {
+      const publId = allPublicationIds[i];
       const metadata = metadataList[i];
-      const topics = topicsList[i];
-
-      if (!metadata || !topics) continue;
+      const terms = termsMap.get(publId);
+      
+      if (!metadata || !terms) continue;
 
       const year = metadata['Publication year'];
       yearPublicationCount[year] = (yearPublicationCount[year] || 0) + 1;
@@ -473,9 +518,7 @@ const useTopTopicsData = (
         yearData[year] = {};
       }
 
-      for (const [topic, count] of Object.entries(topics)) {
-        if (topic === 'Общенаучные термины') continue;
-
+      for (const [topic, count] of Object.entries(terms.factors)) {
         const topicCount = count as number;
         allTopicsData[topic] = (allTopicsData[topic] || 0) + topicCount;
         yearData[year][topic] = (yearData[year][topic] || 0) + topicCount;
@@ -492,7 +535,7 @@ const useTopTopicsData = (
   // 2. Подфакторы (вхождения)
   const analyzeSubfactorsByTerms = (
     metadataList: any[],
-    topicsList: any[],
+    termsMap: Map<number, PublicationTerms>,
     allPublicationIds: number[]
   ) => {
     console.log('=== DEBUG: analyzeSubfactorsByTerms ===');
@@ -501,30 +544,30 @@ const useTopTopicsData = (
     const allTopicsData: { [topic: string]: number } = {};
     const yearData: { [year: number]: { [topic: string]: number } } = {};
     const yearPublicationCount: { [year: number]: number } = {};
-
+    
     for (let i = 0; i < allPublicationIds.length; i++) {
+      const publId = allPublicationIds[i];
       const metadata = metadataList[i];
-      const topics = topicsList[i];
+      const terms = termsMap.get(publId);
 
-      if (!metadata || !topics) continue;
+      if (!metadata || !terms) continue;
 
       const year = metadata['Publication year'];
       yearPublicationCount[year] = (yearPublicationCount[year] || 0) + 1;
-
+      
       if (!yearData[year]) {
         yearData[year] = {};
       }
 
-      for (const [topic, count] of Object.entries(topics)) {
-        if (topic === 'Общенаучные термины') continue;
-        if (FACTORS_LIST.includes(topic)) continue; // Исключаем факторы для подфакторов
+      for (const [topic, count] of Object.entries(terms.subfactors)) {
+        // Исключаем факторы (они не должны быть в подфакторах)
+        if (FACTORS_LIST.includes(topic)) continue;
 
         const topicCount = count as number;
         allTopicsData[topic] = (allTopicsData[topic] || 0) + topicCount;
         yearData[year][topic] = (yearData[year][topic] || 0) + topicCount;
       }
-    }
-    
+    }    
     console.log('Результаты analyzeSubfactorsByTerms:');
     console.log('- Уникальных тем:', Object.keys(allTopicsData).length);
     console.log('- Топ-10 тем:', Object.entries(allTopicsData).sort(([, a], [, b]) => b - a).slice(0, 10));
@@ -532,10 +575,82 @@ const useTopTopicsData = (
     return { allTopicsData, yearData, yearPublicationCount };
   };
 
-  // 3. Факторы (публикации)
+  // 3. Термины (вхождения)
+  const analyzeTermsOccurrences = (
+    metadataList: any[],
+    termsMap: Map<number, PublicationTerms>,
+    allPublicationIds: number[]
+  ) => {
+    console.log('=== DEBUG: analyzeTermsOccurrences ===');
+    console.log('Всего публикаций:', allPublicationIds.length);    
+    
+    const termStats: { [term: string]: number } = {};
+    const yearData: { [year: number]: { [term: string]: number } } = {};
+    const yearPublicationCount: { [year: number]: number } = {};
+    
+    const excludedTerms = new Set([
+      ...FACTORS_LIST.map(f => f.toLowerCase()),
+      ...SUBFACTORS_LIST.map(s => s.toLowerCase())
+    ]);
+    
+    console.log('=== ИСКЛЮЧАЕМЫЕ ТЕРМИНЫ (кроме общенаучных, они уже отфильтрованы) ===');
+    console.log('Количество исключаемых терминов:', excludedTerms.size);
+    
+    let totalTermsFound = 0;
+    let excludedTermsCount = 0;
+    
+    for (let i = 0; i < allPublicationIds.length; i++) {
+      const publId = allPublicationIds[i];
+      const metadata = metadataList[i];
+      const terms = termsMap.get(publId);
+
+      if (!metadata || !terms || typeof terms.terms !== 'object') continue;
+
+      const year = metadata['Publication year'];
+      yearPublicationCount[year] = (yearPublicationCount[year] || 0) + 1;
+      if (!yearData[year]) {
+        yearData[year] = {};
+      }
+
+      for (const [term, count] of Object.entries(terms.terms)) {
+        totalTermsFound++;        
+        
+        const termLower = term.toLowerCase();        
+        
+        // Исключаем факторы и подфакторы из списка терминов
+        if (excludedTerms.has(termLower)) {
+          excludedTermsCount++;
+          continue;
+        }        
+        
+        const termCount = count as number;
+        termStats[term] = (termStats[term] || 0) + termCount;
+        yearData[year][term] = (yearData[year][term] || 0) + termCount;
+      }
+    }   
+    
+    console.log('=== СТАТИСТИКА ОБРАБОТКИ ===');
+    console.log(`Всего терминов обработано: ${totalTermsFound}`);
+    console.log(`Исключено терминов (факторы/подфакторы): ${excludedTermsCount}`);
+    console.log(`Осталось чистых терминов: ${Object.keys(termStats).length}`);    
+    
+    console.log(`=== ВСЕ НАЙДЕННЫЕ ЧИСТЫЕ ТЕРМИНЫ ===`);
+    const allTermsSorted = Object.entries(termStats)
+      .sort(([, a], [, b]) => b - a);    
+    
+    console.log(`Всего уникальных чистых терминов: ${allTermsSorted.length}`);
+    console.log(`ТОП-50 всех чистых терминов по вхождениям:`);
+    allTermsSorted.slice(0, 50).forEach(([term, count], idx) => {
+      console.log(`${idx + 1}. "${term}": ${count} вхождений`);
+    });    
+    
+    return { allTopicsData: termStats, yearData, yearPublicationCount };
+  };
+  
+  // 4. Факторы (публикации)
   const analyzeFactorsByPublications = (
     metadataList: any[],
-    topicsList: any[],
+    termsMap: Map<number, PublicationTerms>,
     allPublicationIds: number[]
   ) => {
     console.log('=== DEBUG: analyzeFactorsByPublications ===');
@@ -543,12 +658,13 @@ const useTopTopicsData = (
     const topicPublications: { [topic: string]: number } = {};
     const yearTopicPublications: { [year: number]: { [topic: string]: number } } = {};
     const yearTotalPublications: { [year: number]: number } = {};
-
+    
     for (let i = 0; i < allPublicationIds.length; i++) {
+      const publId = allPublicationIds[i];
       const metadata = metadataList[i];
-      const topics = topicsList[i];
+      const terms = termsMap.get(publId);
 
-      if (!metadata || !topics) continue;
+      if (!metadata || !terms) continue;
 
       const year = metadata['Publication year'];
       yearTotalPublications[year] = (yearTotalPublications[year] || 0) + 1;
@@ -557,287 +673,157 @@ const useTopTopicsData = (
         yearTopicPublications[year] = {};
       }
 
-      // Исключаем "Общенаучные термины"
-      const filteredTopics = Object.entries(topics)
-        .filter(([topic, count]) => topic !== 'Общенаучные термины');
-
-      if (filteredTopics.length === 0) continue;
-
-      // Находим максимальное значение в публикации
-      const maxCount = Math.max(...filteredTopics.map(([, count]) => count as number));
+      const filteredTopics = Object.entries(terms.factors);
       
-      // Берем все темы с максимальным значением
+      if (filteredTopics.length === 0) continue;
+      
+      const maxCount = Math.max(...filteredTopics.map(([, count]) => count as number));      
       const topTopicsForPublication = filteredTopics
         .filter(([, count]) => count === maxCount)
         .map(([topic]) => topic);
-
-      // Учитываем каждую топ-тему публикации
+      
       topTopicsForPublication.forEach(topic => {
         topicPublications[topic] = (topicPublications[topic] || 0) + 1;
         yearTopicPublications[year][topic] = (yearTopicPublications[year][topic] || 0) + 1;
       });
-    }
+    }    
     
     console.log('Результаты analyzeFactorsByPublications:');
     console.log('- Уникальных тем:', Object.keys(topicPublications).length);
     console.log('- Топ-10 тем по публикациям:', Object.entries(topicPublications).sort(([, a], [, b]) => b - a).slice(0, 10));
-
+    
     return { 
       topicPublications, 
       yearTopicPublications, 
       yearTotalPublications
     };
   };
-
-  // 4. Подфакторы (публикации)
+  
+  // 5. Подфакторы (публикации)
   const analyzeSubfactorsByPublications = (
     metadataList: any[],
-    topicsList: any[],
+    termsMap: Map<number, PublicationTerms>,
     allPublicationIds: number[]
   ) => {
-    console.log('=== DEBUG: analyzeSubfactorsByPublications ===');
+    console.log('=== DEBUG: analyzeSubfactorsByPublications ===');   
     
     const topicPublications: { [topic: string]: number } = {};
     const yearTopicPublications: { [year: number]: { [topic: string]: number } } = {};
     const yearTotalPublications: { [year: number]: number } = {};
-
+    
     for (let i = 0; i < allPublicationIds.length; i++) {
+      const publId = allPublicationIds[i];
       const metadata = metadataList[i];
-      const topics = topicsList[i];
-
-      if (!metadata || !topics) continue;
-
+      const terms = termsMap.get(publId);
+      
+      if (!metadata || !terms) continue;
+      
       const year = metadata['Publication year'];
       yearTotalPublications[year] = (yearTotalPublications[year] || 0) + 1;
-
+      
       if (!yearTopicPublications[year]) {
         yearTopicPublications[year] = {};
       }
-
-      // Исключаем "Общенаучные термины" и факторы
-      const filteredTopics = Object.entries(topics)
-        .filter(([topic, count]) => {
-          if (topic === 'Общенаучные термины') return false;
-          if (FACTORS_LIST.includes(topic)) return false;
-          return true;
-        });
-
-      if (filteredTopics.length === 0) continue;
-
-      // Находим максимальное значение в публикации
-      const maxCount = Math.max(...filteredTopics.map(([, count]) => count as number));
       
-      // Берем все темы с максимальным значением
+      const filteredTopics = Object.entries(terms.subfactors)
+        .filter(([topic]) => !FACTORS_LIST.includes(topic));
+      
+      if (filteredTopics.length === 0) continue;
+      
+      const maxCount = Math.max(...filteredTopics.map(([, count]) => count as number));      
       const topTopicsForPublication = filteredTopics
         .filter(([, count]) => count === maxCount)
         .map(([topic]) => topic);
-
-      // Учитываем каждую топ-тему публикации
+      
       topTopicsForPublication.forEach(topic => {
         topicPublications[topic] = (topicPublications[topic] || 0) + 1;
         yearTopicPublications[year][topic] = (yearTopicPublications[year][topic] || 0) + 1;
       });
-    }
+    }    
     
     console.log('Результаты analyzeSubfactorsByPublications:');
     console.log('- Уникальных тем:', Object.keys(topicPublications).length);
     console.log('- Топ-10 тем по публикациям:', Object.entries(topicPublications).sort(([, a], [, b]) => b - a).slice(0, 10));
-
+    
     return { 
       topicPublications, 
       yearTopicPublications, 
       yearTotalPublications
     };
   };
-
-  // 5. Уникальные термины на публикацию (1 раз на публикацию) - БЕЗ ПОРОГОВОЙ ФИЛЬТРАЦИИ
+  
+  // 6. Уникальные термины на публикацию
   const analyzeUniqueTermsPerPublication = (
     metadataList: any[],
-    termsList: any[],
+    termsMap: Map<number, PublicationTerms>,
     allPublicationIds: number[]
   ) => {
-    console.log('=== ДЕТАЛЬНАЯ ЛОГИКА: analyzeUniqueTermsPerPublication ===');
-    console.log('Всего публикаций:', allPublicationIds.length);
+    console.log('=== DEBUG: analyzeUniqueTermsPerPublication ===');
+    console.log('Всего публикаций:', allPublicationIds.length);    
     
-    // Собираем статистику
     const termStats: { [term: string]: number } = {};
     const yearData: { [year: number]: { [term: string]: number } } = {};
-
-    // Подготавливаем исключения в нижнем регистре (ТОЛЬКО точные совпадения)
+    
     const excludedTerms = new Set([
-      'общенаучные термины',
       ...FACTORS_LIST.map(f => f.toLowerCase()),
       ...SUBFACTORS_LIST.map(s => s.toLowerCase())
     ]);
-
-    console.log('=== ИСКЛЮЧАЕМЫЕ ТЕРМИНЫ (точные совпадения) ===');
+    
+    console.log('=== ИСКЛЮЧАЕМЫЕ ТЕРМИНЫ (кроме общенаучных, они уже отфильтрованы) ===');
     console.log('Количество исключаемых терминов:', excludedTerms.size);
-    console.log('Первые 20 исключаемых терминов:', Array.from(excludedTerms).slice(0, 20));
-
+    
     let totalTermsFound = 0;
     let excludedTermsCount = 0;
-    const excludedDetails: string[] = [];
-
+    
     for (let i = 0; i < allPublicationIds.length; i++) {
+      const publId = allPublicationIds[i];
       const metadata = metadataList[i];
-      const terms = termsList[i];
-
-      if (!metadata || !terms || typeof terms !== 'object') continue;
-
+      const terms = termsMap.get(publId);
+      
+      if (!metadata || !terms || typeof terms.terms !== 'object') continue;
+      
       const year = metadata['Publication year'];
-
       if (!yearData[year]) {
         yearData[year] = {};
       }
 
-      for (const [term, count] of Object.entries(terms)) {
-        totalTermsFound++;
-        const termLower = term.toLowerCase();
+      for (const [term, count] of Object.entries(terms.terms)) {
+        totalTermsFound++;        
         
-        // 1. Исключаем ТОЛЬКО точные совпадения с факторами и подфакторами
+        const termLower = term.toLowerCase();        
+        
         if (excludedTerms.has(termLower)) {
           excludedTermsCount++;
-          if (excludedDetails.length < 20) {
-            excludedDetails.push(`Исключен: "${term}" (точное совпадение)`);
-          }
           continue;
-        }
+        }        
         
-        // 2. НЕ исключаем по длине или паттернам!
-        // Все термины, которые не являются точными совпадениями, считаем валидными
-        
-        // Учитываем 1 раз за публикацию
         if (count as number > 0) {
           termStats[term] = (termStats[term] || 0) + 1;
           yearData[year][term] = (yearData[year][term] || 0) + 1;
         }
       }
-    }
-    
+    } 
+
+
+
     console.log('=== СТАТИСТИКА ОБРАБОТКИ ===');
     console.log(`Всего терминов обработано: ${totalTermsFound}`);
-    console.log(`Исключено терминов: ${excludedTermsCount}`);
-    console.log(`Осталось терминов: ${Object.keys(termStats).length}`);
+    console.log(`Исключено терминов (факторы/подфакторы): ${excludedTermsCount}`);
+    console.log(`Осталось чистых терминов: ${Object.keys(termStats).length}`);   
     
-    if (excludedDetails.length > 0) {
-      console.log('Примеры исключённых терминов:');
-      excludedDetails.forEach(detail => console.log(`  - ${detail}`));
-    }
-    
-    // Показываем ВСЕ найденные термины
-    console.log('=== ВСЕ НАЙДЕННЫЕ ТЕРМИНЫ ===');
+    console.log(`=== ВСЕ НАЙДЕННЫЕ ЧИСТЫЕ ТЕРМИНЫ ===`);
     const allTermsSorted = Object.entries(termStats)
-      .sort(([, a], [, b]) => b - a);
+      .sort(([, a], [, b]) => b - a);    
     
-    console.log(`Всего уникальных терминов: ${allTermsSorted.length}`);
-    console.log('ТОП-50 всех терминов:');
+    console.log(`Всего уникальных чистых терминов: ${allTermsSorted.length}`);
+    console.log(`ТОП-50 всех чистых терминов:`);
     allTermsSorted.slice(0, 50).forEach(([term, count], idx) => {
       console.log(`${idx + 1}. "${term}": ${count} публикаций`);
-    });
-    
-    // БЕЗ ПОРОГОВОЙ ФИЛЬТРАЦИИ - используем все термины
-    console.log('=== РЕЗУЛЬТАТ (БЕЗ ПОРОГОВОЙ ФИЛЬТРАЦИИ) ===');
-    console.log(`Используем все ${Object.keys(termStats).length} терминов`);
-    console.log('ТОП-30 терминов для графика:');
-    Object.entries(termStats)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 30)
-      .forEach(([term, count], idx) => {
-        console.log(`${idx + 1}. "${term}": ${count} публикаций`);
-      });
+    });    
     
     return { allTopicsData: termStats, yearData };
   };
-
-  // 6. Общее количество вхождений терминов (сумма всех вхождений) - БЕЗ ПОРОГОВОЙ ФИЛЬТРАЦИИ
-  const analyzeTermsOccurrences = (
-    metadataList: any[],
-    termsList: any[],
-    allPublicationIds: number[]
-  ) => {
-    console.log('=== ДЕТАЛЬНАЯ ЛОГИКА: analyzeTermsOccurrences ===');
-    console.log('Всего публикаций:', allPublicationIds.length);
-    
-    const termStats: { [term: string]: number } = {};
-    const yearData: { [year: number]: { [term: string]: number } } = {};
-    const yearPublicationCount: { [year: number]: number } = {};
-
-    // Подготавливаем исключения в нижнем регистре (ТОЛЬКО точные совпадения)
-    const excludedTerms = new Set([
-      'общенаучные термины',
-      ...FACTORS_LIST.map(f => f.toLowerCase()),
-      ...SUBFACTORS_LIST.map(s => s.toLowerCase())
-    ]);
-
-    console.log('=== ИСКЛЮЧАЕМЫЕ ТЕРМИНЫ (точные совпадения) ===');
-    console.log('Количество исключаемых терминов:', excludedTerms.size);
-
-    let totalTermsFound = 0;
-    let excludedTermsCount = 0;
-
-    for (let i = 0; i < allPublicationIds.length; i++) {
-      const metadata = metadataList[i];
-      const terms = termsList[i];
-
-      if (!metadata || !terms || typeof terms !== 'object') continue;
-
-      const year = metadata['Publication year'];
-      yearPublicationCount[year] = (yearPublicationCount[year] || 0) + 1;
-
-      if (!yearData[year]) {
-        yearData[year] = {};
-      }
-
-      for (const [term, count] of Object.entries(terms)) {
-        totalTermsFound++;
-        const termLower = term.toLowerCase();
-        
-        // Исключаем ТОЛЬКО точные совпадения с факторами и подфакторами
-        if (excludedTerms.has(termLower)) {
-          excludedTermsCount++;
-          continue;
-        }
-        
-        // НЕ исключаем по длине или паттернам!
-        // Все термины, которые не являются точными совпадениями, считаем валидными
-        
-        // Суммируем вхождения
-        const termCount = count as number;
-        termStats[term] = (termStats[term] || 0) + termCount;
-        yearData[year][term] = (yearData[year][term] || 0) + termCount;
-      }
-    }
-    
-    console.log('=== СТАТИСТИКА ОБРАБОТКИ ===');
-    console.log(`Всего терминов обработано: ${totalTermsFound}`);
-    console.log(`Исключено терминов: ${excludedTermsCount}`);
-    console.log(`Осталось терминов: ${Object.keys(termStats).length}`);
-    
-    // Показываем ВСЕ найденные термины
-    console.log('=== ВСЕ НАЙДЕННЫЕ ТЕРМИНЫ ===');
-    const allTermsSorted = Object.entries(termStats)
-      .sort(([, a], [, b]) => b - a);
-    
-    console.log(`Всего уникальных терминов: ${allTermsSorted.length}`);
-    console.log('ТОП-50 всех терминов по вхождениям:');
-    allTermsSorted.slice(0, 50).forEach(([term, count], idx) => {
-      console.log(`${idx + 1}. "${term}": ${count} вхождений`);
-    });
-    
-    // БЕЗ ПОРОГОВОЙ ФИЛЬТРАЦИИ - используем все термины
-    console.log('=== РЕЗУЛЬТАТ (БЕЗ ПОРОГОВОЙ ФИЛЬТРАЦИИ) ===');
-    console.log(`Используем все ${Object.keys(termStats).length} терминов`);
-    console.log('ТОП-30 терминов для графика:');
-    Object.entries(termStats)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 30)
-      .forEach(([term, count], idx) => {
-        console.log(`${idx + 1}. "${term}": ${count} вхождений`);
-      });
-    
-    return { allTopicsData: termStats, yearData, yearPublicationCount };
-  };
-
+  
   useEffect(() => {
     const fetchTopTopicsData = async () => {
       try {
@@ -845,10 +831,10 @@ const useTopTopicsData = (
         setError(null);
         setProgress(0);
         console.log(`=== НАЧАЛО ЗАГРУЗКИ ===`);
-        console.log(`Сущность: ${entityType} ID: ${entityId}, режим: ${analysisMode}`);
+        console.log(`Сущность: ${entityType} ID: ${entityId}, режим: ${analysisMode}`);        
         
         const allPublicationIds = await getPublicationIds(entityType, entityId);
-        console.log('Всего публикаций:', allPublicationIds.length);
+        console.log('Всего публикаций:', allPublicationIds.length);        
         
         if (!allPublicationIds || allPublicationIds.length === 0) {
           console.log('Нет публикаций для анализа');
@@ -857,111 +843,90 @@ const useTopTopicsData = (
           setPublicationCount(0);
           setLoading(false);
           return;
-        }
+        }        
         
         setPublicationCount(allPublicationIds.length);
-        const metadataList = await fetchMetadataBatch(allPublicationIds);
-        console.log('Загружено метаданных:', metadataList.length);
         
-        // Выбираем правильный уровень данных в зависимости от режима анализа
-        let dataLevel: '1' | '2' | '3' = '1';        
-        switch (analysisMode) {
-          case 'factors_terms':
-          case 'factors_publs':
-            dataLevel = '1';
-            break;
-          case 'subfactors_terms':
-          case 'subfactors_publs':
-            dataLevel = '2';
-            break;
-          case 'unique_terms_publs':
-          case 'terms_occurrences':
-            dataLevel = '3';
-            break;
-        }
+        const metadataList = allPublicationIds.map(id => {
+          const cacheKey = `publs_metadata:${JSON.stringify({ id_publ: id.toString() })}`;
+          return apiCache.get(cacheKey) || { 'Publication year': 0 };
+        });
+        console.log('Загружено метаданных:', metadataList.length);        
         
-        console.log(`Загружаем данные с level=${dataLevel}...`);
-        const dataList = await fetchDataBatch(allPublicationIds, dataLevel);
-        console.log('Загружено данных:', dataList.length);
+        console.log(`Загружаем факторы, подфакторы и термины для ${allPublicationIds.length} публикаций...`);
+        const termsMap = await fetchPublicationTerms(allPublicationIds);
+        console.log('Загружено данных:', termsMap.size);
         
         let allTopicsData: { [topic: string]: number } = {};
         let yearData: { [year: number]: { [topic: string]: number } } = {};
         let publicationCountsData: { [year: number]: { [topic: string]: number } } = {};
         let totalPublicationsData: { [year: number]: number } = {};
-
-        // Выбираем алгоритм анализа
+        
         console.log(`Выполняем анализ: ${analysisMode}`);
+        
         switch (analysisMode) {
           case 'factors_terms':
-            const result1 = analyzeFactorsByTerms(metadataList, dataList, allPublicationIds);
+            const result1 = analyzeFactorsByTerms(metadataList, termsMap, allPublicationIds);
             allTopicsData = result1.allTopicsData;
             yearData = result1.yearData;
             totalPublicationsData = result1.yearPublicationCount;
-            break;
-            
+            break;            
           case 'subfactors_terms':
-            const result2 = analyzeSubfactorsByTerms(metadataList, dataList, allPublicationIds);
+            const result2 = analyzeSubfactorsByTerms(metadataList, termsMap, allPublicationIds);
             allTopicsData = result2.allTopicsData;
             yearData = result2.yearData;
             totalPublicationsData = result2.yearPublicationCount;
-            break;
-            
+            break;            
+          case 'terms_occurrences':
+            const result3 = analyzeTermsOccurrences(metadataList, termsMap, allPublicationIds);
+            allTopicsData = result3.allTopicsData;
+            yearData = result3.yearData;
+            totalPublicationsData = result3.yearPublicationCount;
+            break;            
           case 'factors_publs':
-            const result3 = analyzeFactorsByPublications(metadataList, dataList, allPublicationIds);
-            allTopicsData = result3.topicPublications;
-            yearData = result3.yearTopicPublications;
-            publicationCountsData = result3.yearTopicPublications;
-            totalPublicationsData = result3.yearTotalPublications;
-            break;
-            
-          case 'subfactors_publs':
-            const result4 = analyzeSubfactorsByPublications(metadataList, dataList, allPublicationIds);
+            const result4 = analyzeFactorsByPublications(metadataList, termsMap, allPublicationIds);
             allTopicsData = result4.topicPublications;
             yearData = result4.yearTopicPublications;
             publicationCountsData = result4.yearTopicPublications;
             totalPublicationsData = result4.yearTotalPublications;
-            break;
-            
+            break;            
+          case 'subfactors_publs':
+            const result5 = analyzeSubfactorsByPublications(metadataList, termsMap, allPublicationIds);
+            allTopicsData = result5.topicPublications;
+            yearData = result5.yearTopicPublications;
+            publicationCountsData = result5.yearTopicPublications;
+            totalPublicationsData = result5.yearTotalPublications;
+            break;            
           case 'unique_terms_publs':
-            const result5 = analyzeUniqueTermsPerPublication(metadataList, dataList, allPublicationIds);
-            allTopicsData = result5.allTopicsData;
-            yearData = result5.yearData;
-            break;
-            
-          case 'terms_occurrences':
-            const result6 = analyzeTermsOccurrences(metadataList, dataList, allPublicationIds);
+            const result6 = analyzeUniqueTermsPerPublication(metadataList, termsMap, allPublicationIds);
             allTopicsData = result6.allTopicsData;
             yearData = result6.yearData;
-            totalPublicationsData = result6.yearPublicationCount;
             break;
-        }
+        }        
         
         console.log('=== РЕЗУЛЬТАТЫ АНАЛИЗА ===');
-        console.log('- Найдено уникальных тем/терминов:', Object.keys(allTopicsData).length);
-        console.log('- Примеры тем/терминов:', Object.entries(allTopicsData).slice(0, 10));
+        console.log('- Найдено уникальных тем/терминов (без общенаучных):', Object.keys(allTopicsData).length);
+        console.log('- Примеры тем/терминов:', Object.entries(allTopicsData).slice(0, 10));        
         
-        // Выбираем топ-5 тем/терминов
         const sortedTopics = Object.entries(allTopicsData)
           .sort(([, a], [, b]) => b - a)
           .slice(0, Math.min(limit, Object.keys(allTopicsData).length))
-          .map(([topic]) => topic);
+          .map(([topic]) => topic);        
         
         console.log(`Топ-${sortedTopics.length} тем/терминов:`, sortedTopics);
-        setTopTopics(sortedTopics);
+        setTopTopics(sortedTopics);        
         
-        // Подготавливаем данные для графика
         const allYears = Object.keys(yearData)
           .map(y => parseInt(y))
           .filter(y => !isNaN(y))
-          .sort((a, b) => a - b);
+          .sort((a, b) => a - b);        
         
-        console.log('Все года:', allYears);
+        console.log('Все года:', allYears);        
         
         const transformedData: TopicYearData[] = allYears.map(year => {
           const yearTopics = yearData[year] || {};
           const yearPublicationCounts = publicationCountsData[year] || {};
-          const totalPubs = totalPublicationsData[year] || 0;
-          
+          const totalPubs = totalPublicationsData[year] || 0;          
           return {
             year,
             topics: sortedTopics.reduce((acc, topic) => {
@@ -979,7 +944,7 @@ const useTopTopicsData = (
               }, {} as { [topic: string]: number }) : undefined,
             totalPublications: analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs' ? totalPubs : undefined
           };
-        });
+        });        
         
         setProgress(100);
         setData(transformedData);
@@ -990,12 +955,12 @@ const useTopTopicsData = (
       } finally {
         setTimeout(() => setLoading(false), 300);
       }
-    };
+    };    
     
     if (entityId) {
       fetchTopTopicsData();
     }
-  }, [entityType, entityId, limit, analysisMode]);
+  }, [entityType, entityId, limit, analysisMode]);  
   
   return { data, loading, error, topTopics, publicationCount, progress };
 };
@@ -1019,17 +984,17 @@ type TabType = 'evolution' | 'statistics' | 'forecast';
 const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, entityType = 'authors' }) => {
   const router = useRouter();
   const { entity: routerEntity, ids } = router.query;
-  const finalEntityType = (routerEntity as EntityType) || entityType;
+  const finalEntityType = (routerEntity as EntityType) || entityType;  
   
   const entityId = useMemo(() => {
     if (!ids) return '';
     return Array.isArray(ids) ? ids[0] : ids;
-  }, [ids]);
+  }, [ids]);  
   
   const [activeTab, setActiveTab] = useState<TabType>('evolution');
   const [selectedTopicIndex, setSelectedTopicIndex] = useState<number | null>(null);
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('factors_terms');
-  const [showAlgorithm, setShowAlgorithm] = useState(false);
+  const [showAlgorithm, setShowAlgorithm] = useState(false);  
   
   const {
     data: evolutionData,
@@ -1038,9 +1003,9 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
     topTopics,
     publicationCount,
     progress
-  } = useTopTopicsData(finalEntityType, entityId, 5, analysisMode);
+  } = useTopTopicsData(finalEntityType, entityId, 5, analysisMode);  
   
-  const labels = entityLabels[finalEntityType];
+  const labels = entityLabels[finalEntityType];  
   
   const entityName = useMemo(() => {
     if (!entityId || !entitiesResponse?.data || entitiesResponse.data.length === 0) {
@@ -1053,91 +1018,141 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
       a.id === entityId
     );
     return entity?.value || labels.defaultName;
-  }, [entityId, entitiesResponse?.data, labels.defaultName]);
+  }, [entityId, entitiesResponse?.data, labels.defaultName]);  
   
-  const colors = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'];
-  const displayTopics = topTopics;
-  
-  const getChartData = useMemo(() => {
-    if (!evolutionData.length || !displayTopics.length) return [];
+  const colors = ['#807c7c', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'];
+  const displayTopics = topTopics;  
+const [data1, setData1] = useState<[number, number][]>([]);
+const [isLoading1, setIsLoading1] = useState(false);
+const [error1, setError1] = useState<string | null>(null);
+const [publicationsByYear, setPublicationsByYear] = useState<Record<number, number>>({}); // 👈 Добавлено состояние
+
+useEffect(() => {
+  const fetchData = async () => {
+    setIsLoading1(true);
+    setError1(null);
     
-    return evolutionData.map(item => {
-      const flatData: any = { year: item.year };
-      displayTopics.forEach(topic => {
-        flatData[`topics.${topic}`] = item.topics[topic] || 0;
-        if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
-          flatData[`counts.${topic}`] = item.publicationCounts?.[topic] || 0;
-        }
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ids = urlParams.get('ids');
+      const entity = urlParams.get('entity');
+      
+      if (entity !== 'authors' || !ids) {
+        throw new Error('Неверные параметры URL');
+      }
+      
+      const authorId = ids.split(',')[0];
+      
+      const response = await fetch(
+        `http://193.232.208.58:9002/grapher/get_author_publications?auth_prnd_id=${authorId}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result: [number, number][] = await response.json();
+      console.log("result:", result);
+      setData1(result);
+      
+      // Суммируем публикации по годам
+      const yearCounts: Record<number, number> = {};
+      result.forEach(([_, year]) => {
+        yearCounts[year] = (yearCounts[year] || 0) + 1;
       });
       
-      if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
-        flatData.totalPublications = item.totalPublications || 0;
-      }
+      console.log("Publications by year:", yearCounts);
+      setPublicationsByYear(yearCounts); // 👈 Устанавливаем значение
       
-      return flatData;
-    });
-  }, [evolutionData, displayTopics, analysisMode]);
+    } catch (err) {
+      setError1(err instanceof Error ? err.message : 'Ошибка загрузки');
+    } finally {
+      setIsLoading1(false);
+    }
+  };
+
+  fetchData();
+}, []);
   
-  const filteredChartData = useMemo(() => {
-    if (selectedTopicIndex === null) return getChartData;
-    
-    return getChartData.map(item => {
-      const filteredItem: any = { year: item.year };
-      const topicName = displayTopics[selectedTopicIndex];
-      filteredItem[`topics.${topicName}`] = item[`topics.${topicName}`] || 0;
-      
+const getChartData = useMemo(() => {
+  if (!evolutionData.length || !displayTopics.length) return [];    
+
+  return evolutionData.map(item => {
+    const flatData: any = { year: item.year };
+
+    displayTopics.forEach(topic => {
+      flatData[`topics.${topic}`] = item.topics[topic] || 0;
+
       if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
-        filteredItem[`counts.${topicName}`] = item[`counts.${topicName}`] || 0;
-        filteredItem.totalPublications = item.totalPublications || 0;
+        flatData[`counts.${topic}`] = item.publicationCounts?.[topic] || 0;
       }
-      
-      return filteredItem;
     });
-  }, [getChartData, selectedTopicIndex, displayTopics, analysisMode]);
+
+    // 👇 подставляем реальное количество публикаций для каждого года
+    flatData.totalPublications = publicationsByYear[item.year] || 0;
+
+    return flatData;
+  });
+}, [evolutionData, displayTopics, analysisMode, publicationsByYear]);
+
+console.log("getChartData: ", getChartData);
+
+const filteredChartData = useMemo(() => {
+  if (selectedTopicIndex === null) return getChartData;
+
+  return getChartData.map(item => {
+    const filteredItem: any = { year: item.year };
+    const topicName = displayTopics[selectedTopicIndex-1];
+
+    // сохраняем выбранный топик
+    filteredItem[`topics.${topicName}`] = item[`topics.${topicName}`] || 0;
+
+    // 👇 сохраняем поле totalPublications всегда, чтобы Bar рисовался
+    filteredItem.totalPublications = item.totalPublications || 0;
+
+    // если используешь counts по другим условиям
+    if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
+      filteredItem[`counts.${topicName}`] = item[`counts.${topicName}`] || 0;
+    }
+
+    return filteredItem;
+  });
+}, [getChartData, selectedTopicIndex, displayTopics, analysisMode]);
+
+console.log("filteredChartData: ", filteredChartData);
   
   const getFilteredColors = useMemo(() => {
     if (selectedTopicIndex === null) return colors;
     return colors.map((color, index) =>
       index === selectedTopicIndex ? color : `${color}20`
     );
-  }, [selectedTopicIndex]);
+  }, [selectedTopicIndex]);  
   
   const handleLegendClick = (index: number) => {
     setSelectedTopicIndex(selectedTopicIndex === index ? null : index);
-  };
+  };  
   
   const handleBackToSelection = () => {
     router.push(`/insights/select?entity=${finalEntityType}`);
-  };
-  
-  const handleClearCache = () => {
-    apiCache.clear();
-    console.log('🧹 Кеш очищен!');
-    alert('Кеш очищен! Перезагрузите страницу для обновления данных.');
-  };
+  };    
   
   const handleModeChange = (mode: AnalysisMode) => {
     setAnalysisMode(mode);
     setSelectedTopicIndex(null);
     setShowAlgorithm(false);
-  };
+  };  
   
-  // Функция для отображения tooltip
   const renderCustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length > 0) {
       const year = payload[0].payload.year;
       const yearData = evolutionData.find(d => d.year === year);
-      if (!yearData) return null;
+      if (!yearData) return null;      
       
-      // Режимы "по публикациям"
       if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
-        const totalPubs = yearData.totalPublications || 0;
-        
+        const totalPubs = yearData.totalPublications || 0;        
         if (selectedTopicIndex !== null) {
-          // Показываем только одну тему - количество публикаций
           const topicName = displayTopics[selectedTopicIndex];
-          const pubCount = yearData.publicationCounts?.[topicName] || 0;
-          
+          const pubCount = yearData.publicationCounts?.[topicName] || 0;          
           return (
             <Box sx={{ 
               p: 2,
@@ -1160,14 +1175,11 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
             </Box>
           );
         } else {
-          // Показываем все темы - процент от общего количества публикаций
           const topicsWithData = displayTopics.filter(topic => {
             const pubCount = yearData.publicationCounts?.[topic] || 0;
             return pubCount > 0;
-          });
-          
-          if (topicsWithData.length === 0) return null;
-          
+          });          
+          if (topicsWithData.length === 0) return null;          
           return (
             <Box sx={{
               p: 2,
@@ -1192,9 +1204,7 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
             </Box>
           );
         }
-      }
-      
-      // Все остальные режимы
+      }      
       else {
         if (selectedTopicIndex !== null) {
           const topicName = displayTopics[selectedTopicIndex];
@@ -1219,10 +1229,8 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
         } else {
           const totalInclusions = displayTopics.reduce((sum, topic) => {
             return sum + (yearData.terms[topic] || 0);
-          }, 0);
-          
-          if (totalInclusions === 0) return null;
-          
+          }, 0);          
+          if (totalInclusions === 0) return null;          
           const nonZeroTopics = displayTopics.filter(topic => {
             const count = yearData.terms[topic] || 0;
             return count > 0;
@@ -1255,16 +1263,16 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
       }
     }
     return null;
-  };
+  };  
   
   const getModeLabel = (mode: AnalysisMode) => {
     switch (mode) {
       case 'factors_terms': return 'вхожд';
       case 'subfactors_terms': return 'вхожд';
+      case 'terms_occurrences': return 'вхожд';
       case 'factors_publs': return 'публ';
       case 'subfactors_publs': return 'публ';
       case 'unique_terms_publs': return 'публ';
-      case 'terms_occurrences': return 'вхожд';
       default: return '';
     }
   };
@@ -1273,10 +1281,10 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
     switch (mode) {
       case 'factors_terms': return 'Сумма вхождений факторов в публикациях за год';
       case 'subfactors_terms': return 'Сумма вхождений подфакторов в публикациях за год';
+      case 'terms_occurrences': return 'Общее количество вхождений терминов в публикациях за год';
       case 'factors_publs': return 'Процент публикаций, где фактор является доминирующим';
       case 'subfactors_publs': return 'Процент публикаций, где подфактор является доминирующим';
       case 'unique_terms_publs': return 'В скольких публикациях встречается термин (уникальные вхождения)';
-      case 'terms_occurrences': return 'Общее количество вхождений терминов в публикациях за год';
       default: return '';
     }
   };
@@ -1286,64 +1294,66 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
       case 'factors_terms':
         return `1. Для каждой публикации получаем метаданные и факторы (level=1)
 2. Извлекаем год публикации
-3. Для каждого фактора:
+3. Исключаем общенаучные термины
+4. Для каждого фактора:
    - Суммируем количество вхождений фактора в публикации
    - Добавляем к общему счетчику для фактора
-4. Сортируем факторы по убыванию суммарных вхождений
-5. Выбираем топ-5 факторов
-6. Формируем данные для графика: год - {фактор: сумма вхождений}`;
+5. Сортируем факторы по убыванию суммарных вхождений
+6. Выбираем топ-5 факторов
+7. Формируем данные для графика: год - {фактор: сумма вхождений}`;
       
       case 'subfactors_terms':
         return `1. Для каждой публикации получаем метаданные и подфакторы (level=2)
 2. Извлекаем год публикации
-3. Для каждого подфактора суммируем количество вхождений подфактора
-4. Сортируем подфакторы по убыванию суммарных вхождений
-5. Выбираем топ-5 подфакторов
-6. Формируем данные для графика: год - {подфактор: сумма вхождений}`;
-      
-      case 'factors_publs':
-        return `1. Для каждой публикации получаем метаданные и факторы (level=1)
-2. Извлекаем год публикации
-3. Находим максимальное значение среди всех факторов в публикации
-4. Определяем все факторы с этим максимальным значением (доминирующие)
-5. Для каждого доминирующего фактора учитываем публикацию
-6. Сортируем факторы по количеству публикаций, где они доминируют
-7. Выбираем топ-5 факторов
-8. Формируем данные для графика: год - {фактор: % публикаций}`;
-      
-      case 'subfactors_publs':
-        return `1. Для каждой публикации получаем метаданные и подфакторы (level=2)
-2. Извлекаем год публикации
-3. Находим максимальное значение среди подфакторов
-4. Определяем доминирующие подфакторы
-5. Для каждого доминирующего подфактора учитываем публикацию
-6. Сортируем подфакторы по количеству публикаций, где они доминируют
-7. Выбираем топ-5 подфакторов
-8. Формируем данные для графика: год - {подфактор: % публикаций}`;
-      
-      case 'unique_terms_publs':
-        return `1. Для каждой публикации получаем метаданные и термины (level=3)
-2. Извлекаем год публикации
-3. Для каждого термина увеличиваем счетчик публикаций с термином
-4. Сортируем чистые термины по количеству публикаций
-5. Выводим в консоль ВСЕ найденные термины для отладки
-6. Выбираем топ-5 чистых терминов
-7. Формируем данные для графика: год - {термин: кол-во публикаций}`;
+3. Исключаем общенаучные термины и факторы
+4. Для каждого подфактора суммируем количество вхождений подфактора
+5. Сортируем подфакторы по убыванию суммарных вхождений
+6. Выбираем топ-5 подфакторов
+7. Формируем данные для графика: год - {подфактор: сумма вхождений}`;
       
       case 'terms_occurrences':
         return `1. Для каждой публикации получаем метаданные и термины (level=3)
 2. Извлекаем год публикации
-3. Для каждого термина:
-   - Суммируем количество вхождений термина
-   - Добавляем к общему счетчику для термина
-4. Сортируем чистые термины по количеству вхождений
-5. Выводим в консоль ВСЕ найденные термины для отладки
+3. Исключаем общенаучные термины, факторы и подфакторы
+4. Для каждого чистого термина суммируем количество вхождений
+5. Сортируем чистые термины по количеству вхождений
 6. Выбираем топ-5 чистых терминов
 7. Формируем данные для графика: год - {термин: сумма вхождений}`;
       
+      case 'factors_publs':
+        return `1. Для каждой публикации получаем метаданные и факторы (level=1)
+2. Извлекаем год публикации
+3. Исключаем общенаучные термины
+4. Находим максимальное значение среди всех факторов в публикации
+5. Определяем все факторы с этим максимальным значением (доминирующие)
+6. Для каждого доминирующего фактора учитываем публикацию
+7. Сортируем факторы по количеству публикаций, где они доминируют
+8. Выбираем топ-5 факторов
+9. Формируем данные для графика: год - {фактор: % публикаций}`;
+      
+      case 'subfactors_publs':
+        return `1. Для каждой публикации получаем метаданные и подфакторы (level=2)
+2. Извлекаем год публикации
+3. Исключаем общенаучные термины и факторы
+4. Находим максимальное значение среди подфакторов
+5. Определяем доминирующие подфакторы
+6. Для каждого доминирующего подфактора учитываем публикацию
+7. Сортируем подфакторы по количеству публикаций, где они доминируют
+8. Выбираем топ-5 подфакторов
+9. Формируем данные для графика: год - {подфактор: % публикаций}`;
+      
+      case 'unique_terms_publs':
+        return `1. Для каждой публикации получаем метаданные и термины (level=3)
+2. Извлекаем год публикации
+3. Исключаем общенаучные термины, факторы и подфакторы
+4. Для каждого чистого термина увеличиваем счетчик публикаций с термином
+5. Сортируем чистые термины по количеству публикаций
+6. Выбираем топ-5 чистых терминов
+7. Формируем данные для графика: год - {термин: кол-во публикаций}`;
+      
       default: return '';
     }
-  };
+  };  
   
   const renderCustomLegend = (props: any) => {
     const { payload } = props;
@@ -1418,7 +1428,7 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
         })}
       </Box>
     );
-  };
+  };  
   
   return (
     <>
@@ -1491,10 +1501,9 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
               Прогноз дальнейшего развития 
             </button>
           </Stack>
-
           {activeTab === 'evolution' && (
             <>
-              {/* 6 КНОПОК РЕЖИМОВ АНАЛИЗА */}
+              {/* 6 КНОПОК РЕЖИМОВ АНАЛИЗА В НОВОМ ПОРЯДКЕ */}
               <Box sx={{ 
                 display: 'flex', 
                 justifyContent: 'center', 
@@ -1502,7 +1511,6 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                 mt: 1,
                 flexWrap: 'wrap'
               }}>
-                {/* 1. Факторы (вхождения) */}
                 <button
                   onClick={() => handleModeChange('factors_terms')}
                   style={{
@@ -1522,7 +1530,6 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                   Факторы (вхождения)
                 </button>
                 
-                {/* 2. Подфакторы (вхождения) */}
                 <button
                   onClick={() => handleModeChange('subfactors_terms')}
                   style={{
@@ -1542,7 +1549,25 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                   Подфакторы (вхождения)
                 </button>
                 
-                {/* 3. Факторы (публикации) */}
+                <button
+                  onClick={() => handleModeChange('terms_occurrences')}
+                  style={{
+                    minWidth: '140px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    fontWeight: analysisMode === 'terms_occurrences' ? 600 : 500,
+                    fontSize: '12px',
+                    textTransform: 'none',
+                    border: '1px solid #1b4596',
+                    cursor: 'pointer',
+                    backgroundColor: analysisMode === 'terms_occurrences' ? '#1b4596' : '#FFFFFF',
+                    color: analysisMode === 'terms_occurrences' ? '#FFFFFF' : '#1b4596',
+                    padding: '0 8px',
+                  }}
+                >
+                  Термины (вхождения)
+                </button>
+                
                 <button
                   onClick={() => handleModeChange('factors_publs')}
                   style={{
@@ -1562,7 +1587,6 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                   Факторы (публикации)
                 </button>
                 
-                {/* 4. Подфакторы (публикации) */}
                 <button
                   onClick={() => handleModeChange('subfactors_publs')}
                   style={{
@@ -1582,7 +1606,6 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                   Подфакторы (публикации)
                 </button>
                 
-                {/* 5. Термины (публикации) */}
                 <button
                   onClick={() => handleModeChange('unique_terms_publs')}
                   style={{
@@ -1601,29 +1624,8 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                 >
                   Термины (публикации)
                 </button>
-                
-                {/* 6. Термины (вхождения) */}
-                <button
-                  onClick={() => handleModeChange('terms_occurrences')}
-                  style={{
-                    minWidth: '140px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    fontWeight: analysisMode === 'terms_occurrences' ? 600 : 500,
-                    fontSize: '12px',
-                    textTransform: 'none',
-                    border: '1px solid #1b4596',
-                    cursor: 'pointer',
-                    backgroundColor: analysisMode === 'terms_occurrences' ? '#1b4596' : '#FFFFFF',
-                    color: analysisMode === 'terms_occurrences' ? '#FFFFFF' : '#1b4596',
-                    padding: '0 8px',
-                  }}
-                >
-                  Термины (вхождения)
-                </button>
               </Box>
               
-              {/* Индикатор прогресса */}
               {evolutionLoading && publicationCount > 0 && (
                 <Card sx={{ 
                   bgcolor: '#FFFFFF', 
@@ -1661,9 +1663,8 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                     </Box>
                   </CardContent>
                 </Card>
-              )}
+              )}              
               
-              {/* ОСНОВНОЙ ГРАФИК */}
               <Card
                 sx={{
                   bgcolor: '#FFFFFF',
@@ -1689,11 +1690,11 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                       <Typography variant="body2" color="text-secondary">
                         {getModeDescription(analysisMode)}
                       </Typography>
-                      {analysisMode === 'unique_terms_publs' || analysisMode === 'terms_occurrences' ? (
+                      {(analysisMode === 'unique_terms_publs' || analysisMode === 'terms_occurrences') && (
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
                           Проверьте консоль браузера для подробной информации о найденных терминах
                         </Typography>
-                      ) : null}
+                      )}
                     </Box>
                   ) : (
                     <Box sx={{ width: '100%', height: '500px', position: 'relative' }}>
@@ -1729,7 +1730,7 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                       )}
                       <Box sx={{ width: '100%', height: '500px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={selectedTopicIndex === null ? getChartData : filteredChartData}>
+                          <ComposedChart data={selectedTopicIndex === null ? getChartData : filteredChartData}>
                             <defs>
                               {displayTopics.map((topic, index) => (
                                 <linearGradient key={topic} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
@@ -1738,44 +1739,24 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                                 </linearGradient>
                               ))}
                             </defs>
+
                             <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-                            <XAxis
-                              dataKey="year"
-                              stroke="#1b4596"
-                              tick={{ fill: '#1b4596', fontWeight: 600 }}
-                              style={{ fontSize: '14px', fontWeight: 600 }}
+                            <XAxis dataKey="year" stroke="#1b4596" tick={{ fill: '#1b4596', fontWeight: 600 }} style={{ fontSize: '14px', fontWeight: 600 }} />
+                            <YAxis stroke="#656565" style={{ fontSize: '12px' }} />
+
+                            <Tooltip content={renderCustomTooltip} />
+
+                            <Legend content={renderCustomLegend} />
+
+                            {/* 👇 добавляем столбик */}
+                            <Bar
+                              dataKey="totalPublications"
+                              fill="#90A4AE"
+                              barSize={20}
+                              name="всего публикаций" // будет в легенде
                             />
-                            <YAxis
-                              stroke="#656565"
-                              style={{ fontSize: '12px' }}
-                              tick={false}
-                              axisLine={false}
-                            />
-                            <Tooltip
-                              wrapperStyle={{
-                                backgroundColor: '#FFFFFF',
-                              }}
-                              contentStyle={{
-                                backgroundColor: '#FFFFFF',
-                                border: '1px solid #E0E0E0',
-                                borderRadius: '8px',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                padding: 0,
-                              }}
-                              content={renderCustomTooltip}
-                            />
-                            {displayTopics.length > 0 && (
-                              <Legend 
-                                content={renderCustomLegend}
-                                verticalAlign="middle" 
-                                align="right"
-                                wrapperStyle={{ 
-                                  paddingTop: '20px', 
-                                  paddingLeft: '20px',
-                                  width: '250px',
-                                }}
-                              />
-                            )}
+
+                            {/* 👇 оставляем твои Area */}
                             {displayTopics.map((topic, index) => (
                               <Area
                                 key={topic}
@@ -1788,17 +1769,17 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                                 activeDot={{ r: 6, fill: getFilteredColors[index] }}
                               />
                             ))}
-                          </AreaChart>
+                          </ComposedChart>
                         </ResponsiveContainer>
+
                       </Box>
                     </Box>
                   )}
                 </CardContent>
               </Card>
             </>
-          )}
+          )}          
           
-          {/* ВТОРАЯ ВКЛАДКА - ПУСТАЯ КАРТОЧКА */}
           {activeTab === 'statistics' && (
             <Card
               sx={{
@@ -1821,9 +1802,8 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                 </Typography>
               </CardContent>
             </Card>
-          )}
+          )}          
           
-          {/* ТРЕТЬЯ ВКЛАДКА - ПУСТАЯ КАРТОЧКА */}
           {activeTab === 'forecast' && (
             <Card
               sx={{
@@ -1847,8 +1827,7 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
               </CardContent>
             </Card>
           )}
-
-          {/* ИНФОРМАЦИЯ О СУЩНОСТИ */}
+          
           <Card
             sx={{
               bgcolor: '#F5F5F6',
@@ -1881,7 +1860,6 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                   {labels.defaultName}: {entityName}
                 </Typography>
               )}
-
               <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap' }}>
                 {publicationCount > 0 && (
                   <Typography variant="body2" sx={{ color: '#656565', fontWeight: 500 }}>
@@ -1899,8 +1877,7 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
               </Box>
             </CardContent>
           </Card>
-
-          {/* КНОПКА ДЛЯ ПОКАЗА АЛГОРИТМА (ПОД карточкой с описанием сущности) */}
+          
           {activeTab === 'evolution' && !evolutionLoading && evolutionData.length > 0 && displayTopics.length > 0 && (
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Button
@@ -1925,8 +1902,7 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
               </Button>
             </Box>
           )}
-
-          {/* КАРТОЧКА С АЛГОРИТМОМ (только при showAlgorithm) */}
+          
           <Collapse in={showAlgorithm}>
             <Card
               sx={{
@@ -1939,7 +1915,12 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ color: '#1b4596', fontWeight: 600 }}>
-                    Алгоритм анализа: {getModeLabel(analysisMode)}
+                    Алгоритм анализа: {analysisMode === 'unique_terms_publs' ? 'Термины (публикации)' : 
+                      analysisMode === 'terms_occurrences' ? 'Термины (вхождения)' : 
+                      analysisMode === 'factors_terms' ? 'Факторы (вхождения)' :
+                      analysisMode === 'subfactors_terms' ? 'Подфакторы (вхождения)' :
+                      analysisMode === 'factors_publs' ? 'Факторы (публикации)' :
+                      'Подфакторы (публикации)'}
                   </Typography>
                   <IconButton 
                     size="small" 
@@ -1954,9 +1935,8 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
                 </Typography>
               </CardContent>
             </Card>
-          </Collapse>
+          </Collapse>          
           
-          {/* КНОПКИ НАЗАД И ОЧИСТКА КЕША */}
           <Box sx={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1982,11 +1962,12 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
               }}
             >
               Назад
-            </Button>
+            </Button>            
           </Box>
         </Stack>
       </main>
     </>
   );
 };
+
 export default InsightsOnePage;

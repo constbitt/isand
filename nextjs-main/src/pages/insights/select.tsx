@@ -44,15 +44,15 @@ const InsightsSelectPage: React.FC<InsightsSelectPageProps> = ({ entitiesRespons
   const router = useRouter();
   const [selectedEntityIds, setSelectedEntityIds] = React.useState<string[]>([]);
   const [searchQuery, setSearchQuery] = React.useState('');
-
+  
   // Получаем сущности из пропса
   const entities = React.useMemo(() => {
     return entitiesResponse.data || [];
   }, [entitiesResponse.data]);
-
+  
   const loading = entitiesResponse.isLoading;
   const labels = entityLabels[entityType];
-
+  
   const sortedAndFilteredEntities = React.useMemo(() => {
     let candidates = entities;
     if (searchQuery.trim()) {
@@ -81,10 +81,20 @@ const InsightsSelectPage: React.FC<InsightsSelectPageProps> = ({ entitiesRespons
     router.push(`/insights/result?entity=${entityType}&ids=${query}`);
   };
 
-  const isButtonDisabled = selectedEntityIds.length === 0;
+  const handleExpertCheck = () => {
+    // Переход на страницу экспертной проверки/отчёта
+    router.push('/expert-check'); // или другой URL, который вы выберете
+  };
 
-  // ЕДИНСТВЕННАЯ ШИРИНА — для поля и карточки
-  const fieldAndCardWidth = { xs: '100%', lg: 'calc(100% - 106px - 20px)' };
+  const isButtonDisabled = selectedEntityIds.length === 0;
+  
+  // Определяем, показывать ли кнопку "Экспертная проверка"
+  const showExpertButton = entityType === 'authors';
+  
+  // Ширина для поля ввода и карточки
+  const fieldAndCardWidth = showExpertButton 
+    ? { xs: '100%', lg: 'calc(100% - 106px - 100px - 20px)' } // Две кнопки: 106px + 100px + отступы
+    : { xs: '100%', lg: 'calc(100% - 106px - 20px)' }; // Одна кнопка: 106px + отступы
 
   return (
     <>
@@ -118,7 +128,7 @@ const InsightsSelectPage: React.FC<InsightsSelectPageProps> = ({ entitiesRespons
                 {labels.selectLabel}
               </InputLabel>
 
-              {/* Поле + кнопка — как раньше */}
+              {/* Поле + кнопка — модифицированный блок */}
               <Stack
                 direction="row"
                 spacing={2}
@@ -142,29 +152,74 @@ const InsightsSelectPage: React.FC<InsightsSelectPageProps> = ({ entitiesRespons
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <button
-                  onClick={isButtonDisabled ? undefined : handleProceed}
-                  disabled={isButtonDisabled}
-                  style={{
-                    width: '140px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    fontWeight: '500',
-                    fontSize: '14px',
-                    textTransform: 'none',
-                    border: 'none',
-                    cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
-                    backgroundColor: isButtonDisabled ? '#D1D1D1' : '#1b4596',
-                    color: isButtonDisabled ? '#757575' : '#FFFFFF',
-                    opacity: 1,
-                    pointerEvents: 'all',
-                    outline: 'none',
-                    boxShadow: 'none',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  Найти
-                </button>
+                
+                {/* Контейнер для кнопок */}
+                <Stack direction="row" spacing={1.5}>
+                  {/* Кнопка "Найти" - оригинальный размер */}
+                  <button
+                    onClick={isButtonDisabled ? undefined : handleProceed}
+                    disabled={isButtonDisabled}
+                    style={{
+                      width: '106px', // ОРИГИНАЛЬНАЯ ШИРИНА
+                      height: '48px',
+                      borderRadius: '12px',
+                      fontWeight: '500',
+                      fontSize: '14px',
+                      textTransform: 'none',
+                      border: 'none',
+                      cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+                      backgroundColor: isButtonDisabled ? '#D1D1D1' : '#1b4596',
+                      color: isButtonDisabled ? '#757575' : '#FFFFFF',
+                      opacity: 1,
+                      pointerEvents: 'all',
+                      outline: 'none',
+                      boxShadow: 'none',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    Найти
+                  </button>
+                  
+                  {/* Кнопка "Экспертная проверка" - только для авторов */}
+                  {showExpertButton && (
+                    <button
+                      onClick={handleExpertCheck}
+                      style={{
+                        width: '100px', // УЗКАЯ кнопка (на 6px уже чем "Найти")
+                        height: '48px',
+                        borderRadius: '12px',
+                        fontWeight: '500',
+                        fontSize: '12px', // Меньший шрифт для двух строк
+                        textTransform: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: '#2E7D32',
+                        color: '#FFFFFF',
+                        opacity: 1,
+                        pointerEvents: 'all',
+                        outline: 'none',
+                        boxShadow: 'none',
+                        WebkitTapHighlightColor: 'transparent',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        lineHeight: 1.1,
+                        padding: '4px 2px',
+                        textAlign: 'center',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#1B5E20';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#2E7D32';
+                      }}
+                    >
+                      <span>Экспертная</span>
+                      <span>проверка</span>
+                    </button>
+                  )}
+                </Stack>
               </Stack>
 
               {/* Карточка */}
@@ -200,7 +255,6 @@ const InsightsSelectPage: React.FC<InsightsSelectPageProps> = ({ entitiesRespons
                           sortedAndFilteredEntities.map((entity) => (
                             <Box
                               key={entity.id}
-                              variant="body2"
                               onClick={() => handleEntityClick(entity.id)}
                               sx={{
                                 py: 1.2,
@@ -212,7 +266,7 @@ const InsightsSelectPage: React.FC<InsightsSelectPageProps> = ({ entitiesRespons
                                 '&:hover': {
                                   backgroundColor: 'rgba(27,69,150,0.06)',
                                   borderRadius: '8px',
-                              },
+                                },
                               }}
                             >
                               {entity.value}
@@ -290,7 +344,7 @@ export const getServerSideProps = wrapper.getServerSideProps(
         await store.dispatch(getAuthors.initiate());
         entitiesResponse = getAuthors.select()(store.getState());
     }
-
+    
     // Сортируем данные по алфавиту перед отправкой в компонент
     if (entitiesResponse?.data) {
       entitiesResponse = {
@@ -299,9 +353,9 @@ export const getServerSideProps = wrapper.getServerSideProps(
           a.value.localeCompare(b.value, 'ru')
         ),
       };
-    }
-    
+    }    
     await Promise.all(store.dispatch(apiV1GetRunningQueriesThunk()));
+    
     return {
       props: {
         entitiesResponse,

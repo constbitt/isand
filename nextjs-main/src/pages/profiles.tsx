@@ -45,6 +45,9 @@ import StyledCheckbox from "@/src/components/Fields/StyledCheckbox";
 import StyledContainedButton from "@/src/components/Buttons/StyledContainedButton";
 import Head from "next/head";
 
+import { useGetAuthorPublicationsCountByYearQuery } from "@/src/store/api/serverApiV5"; 
+
+
 // Тип для идентификации типа сущности
 type EntityType = 'profiles' | 'journals' | 'conferences' | 'organizations' | 'cities';
 
@@ -63,7 +66,10 @@ export default function UnifiedProfiles({
     organizationsResponse: ApiResponse<Author[]>,
     citiesResponse: ApiResponse<Author[]>
 }) {
-
+        const { data: publicationsCount, isLoading, error } = useGetAuthorPublicationsCountByYearQuery({
+        auth_prnd_id: 528
+    });
+    console.log("publicationsCount: ", publicationsCount);
     // Состояние для переключения между типами сущностей
     const [entityType, setEntityType] = useState<EntityType>('profiles');
     
