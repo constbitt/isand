@@ -1,4 +1,146 @@
 // src/pages/api/proxy.js
+//
+// Клиент ходит только на /api/proxy; grapher/filewatcher вызываются с сервера Next.
+//
+// Базовые URL (как в рабочей версии до рефакторинга) — если переменные окружения не заданы.
+// В продакшене задайте GRAPHER_BASE_URL и ML_FILEWATCHER_BASE_URL (HTTPS за reverse proxy),
+// чтобы не зависеть от дефолтов ниже.
+//
+// Дальнейшее улучшение: batch-API на стороне Next, чтобы не дергать get_publication_terms по одной публикации с клиента.
+
+/** Дефолт = прежний grapher; переопределение: GRAPHER_BASE_URL */
+const DEFAULT_GRAPHER_BASE_URL = 'http://193.232.208.58:9002/grapher';
+
+/** Хост без /filewatcher; переопределение: ML_FILEWATCHER_BASE_URL (см. resolveFilewatcherBaseUrl) */
+const DEFAULT_FILEWATCHER_ORIGIN = 'http://193.232.208.58:9001';
+
+function getGrapherBaseUrl() {
+  const v = (process.env.GRAPHER_BASE_URL || DEFAULT_GRAPHER_BASE_URL).trim();
+  return v.replace(/\/$/, '');
+}
+
+/**
+ * http://host:9001 и http://host:9001/ → с суффиксом /filewatcher; полный путь с /filewatcher не трогаем.
+ * Без env — как раньше (DEFAULT_FILEWATCHER_ORIGIN + /filewatcher).
+ */
+function resolveFilewatcherBaseUrl(rawEnv) {
+  const base = (rawEnv && String(rawEnv).trim()) || DEFAULT_FILEWATCHER_ORIGIN;
+  if (!base) return null;
+  const trimmed = String(base).replace(/\/$/, '');
+  if (/\/filewatcher$/i.test(trimmed)) return trimmed;
+  if (/^https?:\/\/[^/]+(:\d+)?$/i.test(trimmed)) return `${trimmed}/filewatcher`;
+  return trimmed;
+}
+
+function getFilewatcherBaseUrlResolved() {
+  return resolveFilewatcherBaseUrl(process.env.ML_FILEWATCHER_BASE_URL);
+}
+
+function unwrapDeltasBody(body) {
+  if (body == null || typeof body !== 'object' || Array.isArray(body)) return body;
+  if (body.deltas != null && typeof body.deltas === 'object' && !Array.isArray(body.deltas))
+    return body.deltas;
+  if (body.data != null && typeof body.data === 'object' && !Array.isArray(body.data)) return body.data;
+  if (body.result != null && typeof body.result === 'object' && !Array.isArray(body.result))
+    return body.result;
+  return body;
+}
+
+/**
+ * get_deltas: плоский { термин: number } / обёртка grapher; иногда — массив [ [имя, вес], ... ].
+ */
+function deltasMapFromResponse(body, idPubl) {
+  body = unwrapDeltasBody(body);
+  if (body == null) return {};
+  if (Array.isArray(body)) {
+    const o = {};
+    for (const row of body) {
+      if (row == null) continue;
+      if (Array.isArray(row) && row.length >= 2) {
+        o[String(row[0])] = Number(row[1]) || 0;
+        continue;
+      }
+      if (typeof row === 'object') {
+        const n = row.name ?? row.term ?? row.factor ?? row.label;
+        if (n == null) continue;
+        o[String(n)] =
+          Number(
+            row.delta ?? row.count ?? row.weight ?? row.value ?? 0
+          ) || 0;
+      }
+    }
+    return o;
+  }
+  if (typeof body !== 'object') return {};
+  const k = String(idPubl);
+  if (body[k] != null && typeof body[k] === 'object' && !Array.isArray(body[k])) {
+    return normalizeTermCounts(body[k]);
+  }
+  const keys = Object.keys(body);
+  if (keys.length > 0 && keys.every((x) => /^\d+$/.test(x))) {
+    return body[k] && typeof body[k] === 'object' && !Array.isArray(body[k])
+      ? normalizeTermCounts(body[k])
+      : {};
+  }
+  return normalizeTermCounts(body);
+}
+
+function normalizeTermCounts(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+  const o = {};
+  for (const [name, v] of Object.entries(obj)) {
+    o[name] = typeof v === 'number' && !Number.isNaN(v) ? v : Number(v) || 0;
+  }
+  return o;
+}
+
+/** Откат, если get_deltas недоступен: grapher, level 1/2/3 = факторы/подфакторы/термины */
+async function fetchGrapherPublicationDeltas(grapherBase, idPublStr) {
+  const idNum = parseInt(idPublStr, 10);
+  if (!Number.isFinite(idNum)) throw new Error('Invalid id_publ');
+  const post = (level) =>
+    JSON.stringify({
+      publ_ids: [idNum],
+      id_type: 'local',
+      format: 'names',
+      level,
+      common_terms: 'leave',
+      result: 'list',
+    });
+  const [a, b, c] = await Promise.all([
+    fetch(`${grapherBase}/get_publs_deltas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: post(1),
+    }),
+    fetch(`${grapherBase}/get_publs_deltas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: post(2),
+    }),
+    fetch(`${grapherBase}/get_publs_deltas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: post(3),
+    }),
+  ]);
+  if (!a.ok || !b.ok || !c.ok) {
+    const s = [a, b, c]
+      .map((r) => r.status)
+      .join(', ');
+    throw new Error(`grapher get_publs_deltas: ${s}`);
+  }
+  const fa = await a.json();
+  const fb = await b.json();
+  const fc = await c.json();
+  return {
+    publication_id: idNum,
+    factors: fa[idPublStr] || fa[String(idNum)] || {},
+    subfactors: fb[idPublStr] || fb[String(idNum)] || {},
+    terms: fc[idPublStr] || fc[String(idNum)] || {},
+  };
+}
+
 export default async function handler(req, res) {
   console.log('Simple Proxy called!');
   
@@ -26,8 +168,8 @@ export default async function handler(req, res) {
 
   try {
     let url = '';
-    // Новый сервер для основных данных и терминов
-    const newBaseUrl = 'http://193.232.208.58:9002/grapher';
+    const newBaseUrl = getGrapherBaseUrl();
+    const filewatcherBase = getFilewatcherBaseUrlResolved();
     
     switch (endpoint) {
       // ===== СПИСКИ СУЩНОСТЕЙ =====
@@ -144,118 +286,60 @@ export default async function handler(req, res) {
         if (verbouse) url += `&verbouse=${verbouse}`;
         if (current_user_id) url += `&current_user_id=${current_user_id}`;
         break;
-
-      case 'get_author_publications_count_by_year':
-        const authorIdForCount = author_id || auth_prnd_id;
-        if (!authorIdForCount) throw new Error('Missing author ID for count by year');
-        
-        console.log(`📊 Запрос публикаций для автора ${authorIdForCount}`);
-        url = `${newBaseUrl}/get_author_publications?auth_prnd_id=${authorIdForCount}`;
-        
-        console.log('🔗 URL:', url);
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Ошибка ${response.status}:`, errorText);
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-        
-        console.log(`✅ Получено ${Array.isArray(data) ? data.length : 'объект'} записей`);
-        console.log('Пример первых 3 записей:', Array.isArray(data) ? data.slice(0, 3) : 'не массив');
-        
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-
-        return res.status(200).json(data);
-        
-
-
       
-      // ===== НОВЫЙ МЕТОД: ТЕРМИНЫ/ФАКТОРЫ/ПОДФАКТОРЫ (УРОВНИ 3,2,1) =====
-      case 'get_publication_terms':
-        if (!id_publ) throw new Error('Missing id_publ');
-        
-        console.log(`🔍 Запрос терминов для публикации ${id_publ} (новый метод)`);
-        
-        // Делаем три параллельных POST-запроса на новый сервер
+      // ===== get_publication_terms: filewatcher get_deltas (factor_level: факторы 2, подфакторы 3, термины 4) =====
+      case 'get_publication_terms': {
+        const idPublRaw = Array.isArray(id_publ) ? id_publ[0] : id_publ;
+        if (idPublRaw == null || idPublRaw === '') throw new Error('Missing id_publ');
+        const idPublStr = String(idPublRaw);
+        let result;
+
+        const idQ = encodeURIComponent(idPublStr);
+        const uFactors = `${filewatcherBase}/get_deltas?id_publ=${idQ}&factor_level=2`;
+        const uSubfactors = `${filewatcherBase}/get_deltas?id_publ=${idQ}&factor_level=3`;
+        const uTerms = `${filewatcherBase}/get_deltas?id_publ=${idQ}&factor_level=4`;
+
+        console.log(`🔍 get_deltas id_publ=${idPublStr} (factor_level 2 / 3 / 4)`);
+
         const [factors, subfactors, terms] = await Promise.all([
-          // Уровень 1: Факторы
-          fetch(`${newBaseUrl}/get_publs_deltas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              publ_ids: [parseInt(id_publ)],
-              id_type: 'local',
-              format: 'names',
-              level: 1,
-              common_terms: 'leave',
-              result: 'list'
-            })
-          }),
-          // Уровень 2: Подфакторы
-          fetch(`${newBaseUrl}/get_publs_deltas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              publ_ids: [parseInt(id_publ)],
-              id_type: 'local',
-              format: 'names',
-              level: 2,
-              common_terms: 'leave',
-              result: 'list'
-            })
-          }),
-          // Уровень 3: Термины
-          fetch(`${newBaseUrl}/get_publs_deltas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              publ_ids: [parseInt(id_publ)],
-              id_type: 'local',
-              format: 'names',
-              level: 3,
-              common_terms: 'leave',
-              result: 'list'
-            })
-          })
+          fetch(uFactors, { method: 'GET' }),
+          fetch(uSubfactors, { method: 'GET' }),
+          fetch(uTerms, { method: 'GET' }),
         ]);
 
-        // Проверяем все ответы
-        if (!factors.ok || !subfactors.ok || !terms.ok) {
-          const errors = [];
-          if (!factors.ok) errors.push(`factors: ${factors.status}`);
-          if (!subfactors.ok) errors.push(`subfactors: ${subfactors.status}`);
-          if (!terms.ok) errors.push(`terms: ${terms.status}`);
-          throw new Error(`Ошибка получения иерархии: ${errors.join(', ')}`);
+        const filewatcherOk = factors.ok && subfactors.ok && terms.ok;
+
+        if (filewatcherOk) {
+          const factorsData = await factors.json();
+          const subfactorsData = await subfactors.json();
+          const termsData = await terms.json();
+          result = {
+            publication_id: parseInt(idPublStr, 10),
+            factors: deltasMapFromResponse(factorsData, idPublStr),
+            subfactors: deltasMapFromResponse(subfactorsData, idPublStr),
+            terms: deltasMapFromResponse(termsData, idPublStr),
+          };
+        } else {
+          const st = {
+            factors: factors.status,
+            subfactors: subfactors.status,
+            terms: terms.status,
+          };
+          console.warn(
+            `↩️ filewatcher get_deltas ${JSON.stringify(st)} (base=${filewatcherBase}) → grapher get_publs_deltas id_publ=${idPublStr}`
+          );
+          result = await fetchGrapherPublicationDeltas(newBaseUrl, idPublStr);
         }
-
-        // Парсим все ответы
-        const factorsData = await factors.json();
-        const subfactorsData = await subfactors.json();
-        const termsData = await terms.json();
-
-        // Структурируем ответ в удобном формате
-        const result = {
-          publication_id: parseInt(id_publ),
-          factors: factorsData[id_publ] || {},
-          subfactors: subfactorsData[id_publ] || {},
-          terms: termsData[id_publ] || {}
-        };
 
         console.log(`✅ Термины загружены: факторов=${Object.keys(result.factors).length}, подфакторов=${Object.keys(result.subfactors).length}, терминов=${Object.keys(result.terms).length}`);
         
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.status(200).json(result);
-        
+      }
       default:
         return res.status(400).json({ error: 'Invalid endpoint' });
     }
-
 
     console.log('🔗 Проксируем к:', url);
     

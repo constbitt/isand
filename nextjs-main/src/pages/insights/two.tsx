@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable react/display-name */
 import React, { useState, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -1434,7 +1432,7 @@ const InsightsTwoPage: React.FC<InsightsTwoPageProps> = ({ entityIds = [], entit
                 color: '#FFFFFF',
               }}
             >
-              Статистика за несколько лет
+              Отчёт по эволюции тематик
             </button>
             <button
               onClick={() => {
@@ -1989,7 +1987,7 @@ const InsightsTwoPage: React.FC<InsightsTwoPageProps> = ({ entityIds = [], entit
             >
               <CardContent>
                 <Typography variant="h6" color="text.secondary" align="center">
-                  Статистика за несколько лет
+                  Отчёт по эволюции тематик
                 </Typography>
                 <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
                   Этот раздел находится в разработке

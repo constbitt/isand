@@ -21,9 +21,12 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
-  ComposedChart,
-  Bar,
+  ReferenceArea,
+  ReferenceLine,
 } from 'recharts';
+import { useTrendForecast } from '@/src/lib/useTrendForecast';
+import type { AnalysisEntityType } from '@/src/hooks/useAllAnalysisData';
+import { StatisticsEvolutionView } from '@/src/pages/insights/StatisticsEvolutionView';
 import { ApiResponse } from '@/src/store/types/apiTypes';
 import { Author } from '@/src/store/types/authorTypes';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -107,6 +110,23 @@ const filterOutCommonTerms = <T extends Record<string, number>>(obj: T): T => {
     }
   }
   return filtered;
+};
+
+/** Список id из grapher может быть string | number — для Map.get нужен единый number */
+const normalizePublId = (id: unknown): number | null => {
+  if (id == null) return null;
+  if (typeof id === 'number' && Number.isFinite(id)) return id;
+  const n = parseInt(String(id).trim(), 10);
+  return Number.isFinite(n) ? n : null;
+};
+
+const normalizePublIdList = (ids: unknown[]): number[] => {
+  const out: number[] = [];
+  for (const x of ids) {
+    const n = normalizePublId(x);
+    if (n != null) out.push(n);
+  }
+  return out;
 };
 
 // ========== HOOK ==========
@@ -434,10 +454,10 @@ const useTopTopicsData = (
         
         console.log('Пример метаданных:', publicationsWithYear[0]);
         
-        return publicationsWithYear.map(p => p.id);
+        return normalizePublIdList(publicationsWithYear.map((p) => p.id));
       }
       
-      return publications;
+      return normalizePublIdList(publications);
     }
     
     return [];
@@ -457,9 +477,11 @@ const useTopTopicsData = (
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       const batchPromises = batch.map(async (publId) => {
+        const pid = normalizePublId(publId);
+        if (pid == null) return;
         try {
           const data = await fetchViaProxy('get_publication_terms', {
-            id_publ: publId.toString()
+            id_publ: String(pid)
           }) as PublicationTerms & { publication_id: number };
           
           if (data && typeof data === 'object') {
@@ -470,13 +492,13 @@ const useTopTopicsData = (
               terms: filterOutCommonTerms(data.terms || {})
             };
             
-            console.log(`📊 Публикация ${publId}: факторов=${Object.keys(filteredData.factors).length}, подфакторов=${Object.keys(filteredData.subfactors).length}, терминов=${Object.keys(filteredData.terms).length}`);
+            console.log(`📊 Публикация ${pid}: факторов=${Object.keys(filteredData.factors).length}, подфакторов=${Object.keys(filteredData.subfactors).length}, терминов=${Object.keys(filteredData.terms).length}`);
             
-            resultsMap.set(publId, filteredData);
+            resultsMap.set(pid, filteredData);
           }
         } catch (err) {
-          console.error(`❌ Ошибка данных для публикации ${publId}:`, err);
-          resultsMap.set(publId, { factors: {}, subfactors: {}, terms: {} });
+          console.error(`❌ Ошибка данных для публикации ${pid}:`, err);
+          resultsMap.set(pid, { factors: {}, subfactors: {}, terms: {} });
         }
       });
       
@@ -487,8 +509,6 @@ const useTopTopicsData = (
     return resultsMap;
   };
 
-
-
   // ========== АЛГОРИТМЫ АНАЛИЗА ==========
   
   // 1. Факторы (вхождения)
@@ -498,7 +518,7 @@ const useTopTopicsData = (
     allPublicationIds: number[]
   ) => {
     console.log('=== DEBUG: analyzeFactorsByTerms ===');
-    console.log('всего публикаций:', allPublicationIds.length);
+    console.log('Всего публикаций:', allPublicationIds.length);
     
     const allTopicsData: { [topic: string]: number } = {};
     const yearData: { [year: number]: { [topic: string]: number } } = {};
@@ -802,10 +822,8 @@ const useTopTopicsData = (
           yearData[year][term] = (yearData[year][term] || 0) + 1;
         }
       }
-    } 
-
-
-
+    }   
+    
     console.log('=== СТАТИСТИКА ОБРАБОТКИ ===');
     console.log(`Всего терминов обработано: ${totalTermsFound}`);
     console.log(`Исключено терминов (факторы/подфакторы): ${excludedTermsCount}`);
@@ -1020,106 +1038,68 @@ const InsightsOnePage: React.FC<InsightsOnePageProps> = ({ entitiesResponse, ent
     return entity?.value || labels.defaultName;
   }, [entityId, entitiesResponse?.data, labels.defaultName]);  
   
-  const colors = ['#807c7c', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'];
+  const colors = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'];
   const displayTopics = topTopics;  
-const [data1, setData1] = useState<[number, number][]>([]);
-const [isLoading1, setIsLoading1] = useState(false);
-const [error1, setError1] = useState<string | null>(null);
-const [publicationsByYear, setPublicationsByYear] = useState<Record<number, number>>({}); // 👈 Добавлено состояние
-
-useEffect(() => {
-  const fetchData = async () => {
-    setIsLoading1(true);
-    setError1(null);
-    
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const ids = urlParams.get('ids');
-      const entity = urlParams.get('entity');
-      
-      if (entity !== 'authors' || !ids) {
-        throw new Error('Неверные параметры URL');
-      }
-      
-      const authorId = ids.split(',')[0];
-      
-      const response = await fetch(
-        `http://193.232.208.58:9002/grapher/get_author_publications?auth_prnd_id=${authorId}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result: [number, number][] = await response.json();
-      console.log("result:", result);
-      setData1(result);
-      
-      // Суммируем публикации по годам
-      const yearCounts: Record<number, number> = {};
-      result.forEach(([_, year]) => {
-        yearCounts[year] = (yearCounts[year] || 0) + 1;
-      });
-      
-      console.log("Publications by year:", yearCounts);
-      setPublicationsByYear(yearCounts); // 👈 Устанавливаем значение
-      
-    } catch (err) {
-      setError1(err instanceof Error ? err.message : 'Ошибка загрузки');
-    } finally {
-      setIsLoading1(false);
-    }
-  };
-
-  fetchData();
-}, []);
   
-const getChartData = useMemo(() => {
-  if (!evolutionData.length || !displayTopics.length) return [];    
+  /** В этих режимах график — только фактические годы, без ML-прогноза. */
+  const evolutionForecastEnabled =
+    analysisMode !== 'factors_publs' &&
+    analysisMode !== 'subfactors_publs' &&
+    analysisMode !== 'unique_terms_publs';
 
-  return evolutionData.map(item => {
-    const flatData: any = { year: item.year };
-
-    displayTopics.forEach(topic => {
-      flatData[`topics.${topic}`] = item.topics[topic] || 0;
-
+  const getChartData = useMemo(() => {
+    if (!evolutionData.length || !displayTopics.length) return [];    
+    return evolutionData.map(item => {
+      const flatData: any = { year: item.year, isForecast: false };
+      displayTopics.forEach(topic => {
+        flatData[`topics.${topic}`] = item.topics[topic] || 0;
+        if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
+          flatData[`counts.${topic}`] = item.publicationCounts?.[topic] || 0;
+        }
+      });      
       if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
-        flatData[`counts.${topic}`] = item.publicationCounts?.[topic] || 0;
-      }
+        flatData.totalPublications = item.totalPublications || 0;
+      }      
+      return flatData;
     });
+  }, [evolutionData, displayTopics, analysisMode]);
 
-    // 👇 подставляем реальное количество публикаций для каждого года
-    flatData.totalPublications = publicationsByYear[item.year] || 0;
-
-    return flatData;
+  const {
+    chartDataWithForecast,
+    firstForecastYear,
+    lastHistoryYear,
+    forecastLoading,
+    forecastError,
+    byTopic: forecastByTopic
+  } = useTrendForecast({
+    getChartData,
+    evolutionData: evolutionData as any,
+    displayTopics,
+    finalEntityType: finalEntityType,
+    analysisMode,
+    entityId: entityId || '',
+    evolutionLoading,
+    enableForecast: evolutionForecastEnabled,
   });
-}, [evolutionData, displayTopics, analysisMode, publicationsByYear]);
 
-console.log("getChartData: ", getChartData);
-
-const filteredChartData = useMemo(() => {
-  if (selectedTopicIndex === null) return getChartData;
-
-  return getChartData.map(item => {
-    const filteredItem: any = { year: item.year };
-    const topicName = displayTopics[selectedTopicIndex-1];
-
-    // сохраняем выбранный топик
-    filteredItem[`topics.${topicName}`] = item[`topics.${topicName}`] || 0;
-
-    // 👇 сохраняем поле totalPublications всегда, чтобы Bar рисовался
-    filteredItem.totalPublications = item.totalPublications || 0;
-
-    // если используешь counts по другим условиям
-    if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
-      filteredItem[`counts.${topicName}`] = item[`counts.${topicName}`] || 0;
-    }
-
-    return filteredItem;
-  });
-}, [getChartData, selectedTopicIndex, displayTopics, analysisMode]);
-
-console.log("filteredChartData: ", filteredChartData);
+  const streamChartData = chartDataWithForecast.length > 0
+    ? chartDataWithForecast
+    : getChartData;
+  
+  const filteredChartData = useMemo(() => {
+    if (selectedTopicIndex === null) return streamChartData;    
+    return streamChartData.map(item => {
+      const filteredItem: any = { year: item.year };
+      const topicName = displayTopics[selectedTopicIndex];
+      filteredItem[`topics.${topicName}`] = item[`topics.${topicName}`] || 0;
+      
+      if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
+        filteredItem[`counts.${topicName}`] = item[`counts.${topicName}`] || 0;
+        filteredItem.totalPublications = item.totalPublications || 0;
+      }      
+      return filteredItem;
+    });
+  }, [streamChartData, selectedTopicIndex, displayTopics, analysisMode]);
   
   const getFilteredColors = useMemo(() => {
     if (selectedTopicIndex === null) return colors;
@@ -1142,13 +1122,55 @@ console.log("filteredChartData: ", filteredChartData);
     setShowAlgorithm(false);
   };  
   
+  const forecastProbLabel = (f: { class_name: string; probabilities?: Record<string, number> } | undefined) => {
+    if (!f) return '';
+    const p = f.probabilities
+      ? (f.probabilities[f.class_name] ??
+        f.probabilities[Object.keys(f.probabilities)[0]!])
+      : undefined;
+    if (p == null) return f.class_name || '';
+    return `${f.class_name || '—'} (${(p * 100).toFixed(0)}%)`;
+  };
+
   const renderCustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length > 0) {
-      const year = payload[0].payload.year;
-      const yearData = evolutionData.find(d => d.year === year);
-      if (!yearData) return null;      
+      const row = payload[0].payload;
+      const year = row.year;
+      const isForecast = !!row.isForecast;
+      const yearData = evolutionData.find((d) => d.year === year);
+      if (!isForecast && !yearData) return null;      
       
       if (analysisMode === 'factors_publs' || analysisMode === 'subfactors_publs') {
+        if (isForecast) {
+          const totalPubs = row.totalPublications || 0;
+          if (selectedTopicIndex !== null) {
+            const topicName = displayTopics[selectedTopicIndex];
+            const pubCount = row[`counts.${topicName}`] ?? 0;
+            return (
+              <Box sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#1b4596' }}>
+                  Год: {year} · прогноз
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#666' }}>
+                  {pubCount} публ. (оценка) · {forecastProbLabel(forecastByTopic[topicName])}
+                </Typography>
+              </Box>
+            );
+          }
+          return (
+            <Box sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#1b4596' }}>
+                Год: {year} · прогноз
+              </Typography>
+              {displayTopics.map((topic, index) => (
+                <Typography key={topic} variant="caption" sx={{ display: 'block', color: '#555' }}>
+                  <span style={{ color: colors[index] }}>●</span> {topic}: {forecastProbLabel(forecastByTopic[topic])}
+                </Typography>
+              ))}
+            </Box>
+          );
+        }
+        if (!yearData) return null;
         const totalPubs = yearData.totalPublications || 0;        
         if (selectedTopicIndex !== null) {
           const topicName = displayTopics[selectedTopicIndex];
@@ -1206,9 +1228,61 @@ console.log("filteredChartData: ", filteredChartData);
         }
       }      
       else {
+        if (isForecast) {
+          if (selectedTopicIndex !== null) {
+            const topicName = displayTopics[selectedTopicIndex];
+            const count = row[`topics.${topicName}`] || 0;
+            const f = forecastByTopic[topicName];
+            return (
+            <Box sx={{ 
+              p: 2,
+              bgcolor: '#FFFFFF',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#1b4596' }}>
+                Год: {year} · прогноз
+              </Typography>
+              <Typography variant="body2">
+                <span style={{ color: colors[selectedTopicIndex], fontWeight: 600 }}>●</span>
+                {count.toFixed(analysisMode === 'factors_terms' || analysisMode === 'subfactors_terms' ? 0 : 2)} {getModeLabel(analysisMode)}
+                {f && ` · ${forecastProbLabel(f)}`}
+              </Typography>
+            </Box>
+          );
+          }
+          const nonZero = displayTopics.filter(
+            (topic) => (row[`topics.${topic}`] || 0) > 0
+          );
+          if (nonZero.length === 0) return null;
+          const tot = displayTopics.reduce(
+            (s, t) => s + (Number(row[`topics.${t}`]) || 0),
+            0
+          );
+          return (
+            <Box sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#1b4596' }}>
+                Год: {year} · прогноз
+              </Typography>
+              {nonZero.map((topic) => {
+                const idx = displayTopics.indexOf(topic);
+                const count = Number(row[`topics.${topic}`]) || 0;
+                const percentage = tot > 0 ? ((count / tot) * 100).toFixed(1) : '0';
+                return (
+                <Typography key={topic} variant="body2" sx={{ mb: 0.5 }}>
+                  <span style={{ color: colors[idx] ?? colors[0], fontWeight: 600 }}>●</span>
+                  {percentage}% · {forecastProbLabel(forecastByTopic[topic])}
+                </Typography>
+                );
+              })}
+            </Box>
+          );
+        }
+        if (!yearData) return null;
+        const yd = yearData;
         if (selectedTopicIndex !== null) {
           const topicName = displayTopics[selectedTopicIndex];
-          const count = yearData.terms[topicName] || 0;
+          const count = yd.terms[topicName] || 0;
           
           return (
             <Box sx={{ 
@@ -1228,11 +1302,11 @@ console.log("filteredChartData: ", filteredChartData);
           );
         } else {
           const totalInclusions = displayTopics.reduce((sum, topic) => {
-            return sum + (yearData.terms[topic] || 0);
+            return sum + (yd.terms[topic] || 0);
           }, 0);          
           if (totalInclusions === 0) return null;          
           const nonZeroTopics = displayTopics.filter(topic => {
-            const count = yearData.terms[topic] || 0;
+            const count = yd.terms[topic] || 0;
             return count > 0;
           });
           
@@ -1247,7 +1321,7 @@ console.log("filteredChartData: ", filteredChartData);
                 Год: {year}
               </Typography>
               {nonZeroTopics.map((topic, index) => {
-                const count = yearData.terms[topic] || 0;
+                const count = yd.terms[topic] || 0;
                 const percentage = totalInclusions > 0 ? ((count / totalInclusions) * 100).toFixed(1) : '0';
                 
                 return (
@@ -1461,8 +1535,12 @@ console.log("filteredChartData: ", filteredChartData);
               Эволюция тематик по годам
             </button>
             <button
+              type="button"
+              disabled={!entityId}
               onClick={() => {
+                if (!entityId) return;
                 setActiveTab('statistics');
+                setSelectedTopicIndex(null);
                 setShowAlgorithm(false);
               }}
               style={{
@@ -1473,12 +1551,17 @@ console.log("filteredChartData: ", filteredChartData);
                 fontSize: '16px',
                 textTransform: 'none',
                 border: 'none',
-                cursor: 'pointer',
-                backgroundColor: activeTab === 'statistics' ? '#D1D1D1' : '#1b4596',
+                cursor: !entityId ? 'not-allowed' : 'pointer',
+                backgroundColor: !entityId
+                  ? '#B0B0B0'
+                  : activeTab === 'statistics'
+                    ? '#D1D1D1'
+                    : '#1b4596',
                 color: '#FFFFFF',
+                opacity: !entityId ? 0.7 : 1,
               }}
             >
-              Статистика за несколько лет
+              Отчёт по эволюции тематик
             </button>
             <button
               onClick={() => {
@@ -1698,6 +1781,34 @@ console.log("filteredChartData: ", filteredChartData);
                     </Box>
                   ) : (
                     <Box sx={{ width: '100%', height: '500px', position: 'relative' }}>
+                      {evolutionForecastEnabled && forecastError && (
+                        <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
+                          {forecastError}
+                        </Typography>
+                      )}
+                      {evolutionForecastEnabled && forecastLoading && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            zIndex: 20,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1,
+                            bgcolor: 'rgba(255,255,255,0.9)',
+                            boxShadow: 1,
+                          }}
+                        >
+                          <CircularProgress size={18} />
+                          <Typography variant="caption" color="text.secondary">
+                            Прогнозирование…
+                          </Typography>
+                        </Box>
+                      )}
                       {selectedTopicIndex !== null && (
                         <Box sx={{ 
                           position: 'absolute', 
@@ -1730,7 +1841,7 @@ console.log("filteredChartData: ", filteredChartData);
                       )}
                       <Box sx={{ width: '100%', height: '500px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={selectedTopicIndex === null ? getChartData : filteredChartData}>
+                          <AreaChart data={selectedTopicIndex === null ? streamChartData : filteredChartData}>
                             <defs>
                               {displayTopics.map((topic, index) => (
                                 <linearGradient key={topic} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
@@ -1739,24 +1850,52 @@ console.log("filteredChartData: ", filteredChartData);
                                 </linearGradient>
                               ))}
                             </defs>
-
                             <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-                            <XAxis dataKey="year" stroke="#1b4596" tick={{ fill: '#1b4596', fontWeight: 600 }} style={{ fontSize: '14px', fontWeight: 600 }} />
-                            <YAxis stroke="#656565" style={{ fontSize: '12px' }} />
-
-                            <Tooltip content={renderCustomTooltip} />
-
-                            <Legend content={renderCustomLegend} />
-
-                            {/* 👇 добавляем столбик */}
-                            <Bar
-                              dataKey="totalPublications"
-                              fill="#90A4AE"
-                              barSize={20}
-                              name="всего публикаций" // будет в легенде
+                            {firstForecastYear != null && lastHistoryYear != null && (
+                              <ReferenceArea
+                                x1={firstForecastYear - 0.5}
+                                x2={lastHistoryYear + 3.5}
+                                fill="#64748b"
+                                fillOpacity={0.12}
+                              />
+                            )}
+                            <XAxis
+                              dataKey="year"
+                              stroke="#1b4596"
+                              tick={{ fill: '#1b4596', fontWeight: 600 }}
+                              style={{ fontSize: '14px', fontWeight: 600 }}
                             />
-
-                            {/* 👇 оставляем твои Area */}
+                            <YAxis
+                              stroke="#656565"
+                              style={{ fontSize: '12px' }}
+                              tick={false}
+                              axisLine={false}
+                            />
+                            <Tooltip
+                              wrapperStyle={{
+                                backgroundColor: '#FFFFFF',
+                              }}
+                              contentStyle={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #E0E0E0',
+                                borderRadius: '8px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                padding: 0,
+                              }}
+                              content={renderCustomTooltip}
+                            />
+                            {displayTopics.length > 0 && (
+                              <Legend 
+                                content={renderCustomLegend}
+                                verticalAlign="middle" 
+                                align="right"
+                                wrapperStyle={{ 
+                                  paddingTop: '20px', 
+                                  paddingLeft: '20px',
+                                  width: '250px',
+                                }}
+                              />
+                            )}
                             {displayTopics.map((topic, index) => (
                               <Area
                                 key={topic}
@@ -1764,46 +1903,40 @@ console.log("filteredChartData: ", filteredChartData);
                                 dataKey={`topics.${topic}`}
                                 stroke={getFilteredColors[index]}
                                 strokeWidth={selectedTopicIndex === null || selectedTopicIndex === index ? 2 : 1}
+                                strokeOpacity={0.9}
                                 fill={`url(#color${index})`}
+                                fillOpacity={0.9}
                                 stackId="1"
                                 activeDot={{ r: 6, fill: getFilteredColors[index] }}
                               />
                             ))}
-                          </ComposedChart>
+                            {firstForecastYear != null && (
+                              <ReferenceLine
+                                x={firstForecastYear}
+                                stroke="#1b4596"
+                                strokeWidth={1.5}
+                                strokeDasharray="5 5"
+                                isFront
+                              />
+                            )}
+                          </AreaChart>
                         </ResponsiveContainer>
-
                       </Box>
                     </Box>
                   )}
                 </CardContent>
               </Card>
             </>
-          )}          
-          
-          {activeTab === 'statistics' && (
-            <Card
-              sx={{
-                bgcolor: '#FFFFFF',
-                borderRadius: '16px',
-                boxShadow: '0 4px 32px rgba(0,34,102,0.15)',
-                p: 3,
-                height: '500px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <CardContent>
-                <Typography variant="h6" color="text.secondary" align="center">
-                  Статистика за несколько лет
-                </Typography>
-                <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-                  Этот раздел находится в разработке
-                </Typography>
-              </CardContent>
-            </Card>
-          )}          
-          
+          )}
+
+          {activeTab === 'statistics' && entityId && (
+            <StatisticsEvolutionView
+              entityId={entityId}
+              entityType={finalEntityType as AnalysisEntityType}
+              entityName={entityName}
+            />
+          )}
+
           {activeTab === 'forecast' && (
             <Card
               sx={{

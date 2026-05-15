@@ -11,6 +11,14 @@ interface TopicYearData {
 
 type AnalysisMode = 'factors_terms' | 'subfactors_terms' | 'factors_publs' | 'subfactors_publs' | 'unique_terms_publs' | 'terms_occurrences';
 
+/** Сущность для выборки публикаций (как в insights/one.tsx). */
+export type AnalysisEntityType =
+  | 'authors'
+  | 'journals'
+  | 'conferences'
+  | 'organizations'
+  | 'cities';
+
 const COMMON_TERMS = [
   'Общенаучные термины',
   'общенаучные термины',
@@ -245,7 +253,10 @@ const SUBFACTORS_LIST = [
   'Языки программирования высокого уровня'
 ];
 
-export const useAllAnalysisData = (authorId: string) => {
+export const useAllAnalysisData = (
+  entityId: string,
+  entityType: AnalysisEntityType = 'authors'
+) => {
   const [data, setData] = useState<{ [key in AnalysisMode]?: {
     chartData: TopicYearData[];
     topTopics: string[];
@@ -312,8 +323,30 @@ export const useAllAnalysisData = (authorId: string) => {
     }
   };
 
-  const getPublicationsWithYears = async (): Promise<{ ids: number[]; metadataList: { 'Publication year': number }[] }> => {
-    const publications = await fetchViaProxy('authors_publs', { auth_prnd_id: authorId, id_author: authorId });
+  const getPublicationsWithYears = async (): Promise<{
+    ids: number[];
+    metadataList: { 'Publication year': number }[];
+  }> => {
+    const buildParams = (): { endpoint: string; params: Record<string, string> } => {
+      if (entityType === 'authors') {
+        return {
+          endpoint: 'authors_publs',
+          params: { auth_prnd_id: entityId, id_author: entityId },
+        };
+      }
+      if (entityType === 'journals') {
+        return { endpoint: 'journals_publs', params: { id_journal: entityId } };
+      }
+      if (entityType === 'conferences') {
+        return { endpoint: 'conferences_publs', params: { id_conference: entityId } };
+      }
+      if (entityType === 'organizations') {
+        return { endpoint: 'organizations_publs', params: { id_organization: entityId } };
+      }
+      return { endpoint: 'cities_publs', params: { id_city: entityId } };
+    };
+    const { endpoint, params } = buildParams();
+    const publications = await fetchViaProxy(endpoint, params);
     if (!Array.isArray(publications)) return { ids: [], metadataList: [] };
     const currentYear = new Date().getFullYear();
     // Формат [[id, year], [id, year], ...] как в one.tsx
@@ -754,8 +787,8 @@ export const useAllAnalysisData = (authorId: string) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!authorId) {
-        setError('Не указан ID автора');
+      if (!entityId) {
+        setError('Не указан ID сущности');
         setLoading(false);
         return;
       }
@@ -765,7 +798,7 @@ export const useAllAnalysisData = (authorId: string) => {
         setError(null);
         setProgress(0);
         
-        console.log('Загружаем публикации для автора:', authorId);
+        console.log('Загружаем публикации для', entityType, entityId);
         const { ids: allPublicationIds, metadataList: fullMetadataList } = await getPublicationsWithYears();
         console.log('Получено публикаций:', allPublicationIds?.length);
         
@@ -864,7 +897,7 @@ export const useAllAnalysisData = (authorId: string) => {
     };
 
     fetchData();
-  }, [authorId]);
+  }, [entityId, entityType]);
 
   return { data, loading, error, progress };
 };

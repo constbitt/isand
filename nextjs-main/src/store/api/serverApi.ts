@@ -414,8 +414,144 @@ export const serverApi = createApi({
                     body: formData,
                 };
             },
-    }),
+        }),
 
+        getPublicationTerms: builder.query<any[], { publicationId?: number }>({
+            queryFn: async () => {
+        
+                const mockTerms = [
+                    { term: 'активная система', freq: 56 },
+                    { term: 'механизмы стимулирования', freq: 42 },
+                    { term: 'сетевое управление', freq: 38 },
+                    { term: 'организационное управление', freq: 35 },
+                    { term: 'теория иерархических игр', freq: 29 },
+                    { term: 'план-фактный анализ', freq: 24 },
+                    { term: 'распределенное управление', freq: 22 },
+                    { term: 'робастность', freq: 19 },
+                    { term: 'адаптивные системы', freq: 17 },
+                ];
+                return { data: mockTerms };
+            }
+        }),
+
+        getPublicationCategories: builder.query<any[], { publicationId?: number }>({
+            queryFn: async () => {
+                const mockCategories = [
+                    { name: 'Теория активных систем (ТАС)', value: 48 },
+                    { name: 'Сетевое и распределенное управление', value: 32 },
+                    { name: 'Механизмы планирования и контроля', value: 20 },
+                ];
+                return { data: mockCategories };
+            }
+        }),
+
+        getSimilarPublications: builder.query<any[], { publicationId?: number; limit?: number }>({
+            queryFn: async (arg) => {
+                const mockSimilarPublications = [
+                    {
+                        title: 'Теория управления организационными системами',
+                        authors: 'Новиков Д.А.',
+                        year: 2020,
+                        similarity: 0.94,
+                        reason: 'Базовый труд по теории активных систем, прямое цитирование и развитие идей'
+                    },
+                    {
+                        title: 'Механизмы стимулирования в многоуровневых активных системах',
+                        authors: 'Бурков В.Н., Еналеев А.К., Новиков Д.А.',
+                        year: 2019,
+                        similarity: 0.89,
+                        reason: 'Глубокая проработка механизмов стимулирования — одной из ключевых тем пособия'
+                    },
+                    {
+                        title: 'Сетевые модели и методы управления в организационных системах',
+                        authors: 'Губко М.В.',
+                        year: 2021,
+                        similarity: 0.85,
+                        reason: 'Развитие раздела о сетевом управлении и распределенных механизмах'
+                    },
+                    {
+                        title: 'Управление проектами в активных системах',
+                        authors: 'Воронов А.А., Мишин С.П.',
+                        year: 2022,
+                        similarity: 0.78,
+                        reason: 'Прикладное применение теории активных систем к управлению проектами'
+                    },
+                    {
+                        title: 'Математические модели и методы теории игр в управлении',
+                        authors: 'Васин А.А., Краснокутская П.А.',
+                        year: 2020,
+                        similarity: 0.74,
+                        reason: 'Использование теории иерархических игр, лежащей в основе многих моделей'
+                    },
+                    {
+                        title: 'Адаптивное и робастное управление в технических системах',
+                        authors: 'Фомичев В.В., Кибзун А.И.',
+                        year: 2021,
+                        similarity: 0.69,
+                        reason: 'Смежная тематика по робастности и адаптации, упомянутая в дополнительных главах'
+                    },
+                    {
+                        title: 'Методы анализа и синтеза механизмов организационного управления',
+                        authors: 'Горелик В.А., Кононенко А.Ф.',
+                        year: 2018,
+                        similarity: 0.65,
+                        reason: 'Общий предмет исследования — организационные механизмы управления'
+                    },
+                    {
+                        title: 'План-фактный анализ в системах оперативного управления',
+                        authors: 'Цвиркун А.Д., Акинфиев В.К.',
+                        year: 2022,
+                        similarity: 0.58,
+                        reason: 'Развитие методов контроля и анализа в соответствии с теорией активных систем'
+                    },
+                    {
+                        title: 'Управление развитием сложных систем',
+                        authors: 'Поспелов И.Г., Хрусталев Е.Ю.',
+                        year: 2023,
+                        similarity: 0.52,
+                        reason: 'Общие подходы к управлению сложными техническими и организационными системами'
+                    }
+                ];
+                
+                const limit = arg.limit || mockSimilarPublications.length;
+                return { data: mockSimilarPublications.slice(0, limit) };
+            }
+        }),
+
+        getPublicationAuthors: builder.query<any[], { publicationId?: number }>({
+            queryFn: async () => {
+                const mockAuthors = [
+                    { a_fio: "Абраменков Александр Николаевич" },
+                    { a_fio: "Галяев Андрей Алексеевич" },
+                    { a_fio: "Новиков Дмитрий Александрович" },
+                    { a_fio: "Соколов Сергей Сергеевич" },
+                    { a_fio: "Черкасов Сергей Николаевич" },
+                ];
+                return { data: mockAuthors };
+            }
+        }),
+
+        getPublicationInfo: builder.query<any, { publicationId?: number }>({
+            queryFn: async () => {
+                return { 
+                    data: { 
+                        title: "Теория управления (дополнительные главы)",
+                        description: "Анализ публикации по теории управления",
+                        uploadedAt: new Date().toISOString()
+                    } 
+                };
+            }
+        }),
+
+        generateReport: builder.mutation<any, { publicationId?: number; file?: File }>({
+            queryFn: async () => {
+                const reportBlob = new Blob(
+                    ["Сгенерированный отчет об анализе публикации"], 
+                    { type: 'application/pdf' }
+                );
+                return { data: { url: URL.createObjectURL(reportBlob) } };
+            }
+        }),
     }),
 });
 
@@ -447,8 +583,14 @@ export const {
     useGetRatingsAnnotationsQuery,
     useGetOrganizationsQuery,
     useExtractPdfTextMutation,
+
+    useGetPublicationTermsQuery,
+    useGetPublicationCategoriesQuery,
+    useGetSimilarPublicationsQuery,
+    useGetPublicationAuthorsQuery,
+    useGetPublicationInfoQuery,
+    useGenerateReportMutation,
     util: {getRunningQueriesThunk},
 } = serverApi;
 
-// export endpoints for use in SSR
 export const {getAuthors, getJournals, getConferences, getOrganizations, getCities, getPath, getPathAnnotations, getRatings, getMetrics} = serverApi.endpoints;
